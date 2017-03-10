@@ -1,0 +1,268 @@
+\documentclass[11pt]{article}
+
+\title{Type Inferencing in MPL}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Special symbol macros ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\x}{\times}
+\newcommand{\PhiGamma} {\Phi~|~\Gamma}
+\newcommand{\VdashDel} {\Vdash \Delta} 
+\newcommand{\ox}{\otimes}
+\newcommand{\context}[2]{#1 \left[\hspace{-1.7pt}\left[ #2 \right]\hspace{-1.7pt}\right]}
+\newcommand{\bag}[1]{\{\hspace{-2.5pt}[ #1 ]\hspace{-2.5pt}\}}
+\newcommand{\cons}{\ensuremath{{\sf cons~}}\xspace}
+\newcommand{\dest}{\ensuremath{{\sf dest~}}\xspace}
+\newcommand{\get}{\ensuremath{{\sf get ~ x ~\alpha~}}\xspace}
+\newcommand{\putC}{\ensuremath{{\sf put ~ x ~\alpha~}}\xspace} 
+\newcommand{\close}{\ensuremath{{\sf close ~\alpha~}}\xspace}
+\newcommand{\halt}{\ensuremath{{\sf halt ~\alpha~}}\xspace}
+\newcommand{\plug}{\ensuremath{{\sf plug ~ (\alpha_1,\ldots,\alpha_n) ~(s_1,s_2)}}\xspace}
+
+\newcommand{\splitC}
+    {
+     \ensuremath{{\sf split ~~\alpha~~ (\alpha_1,\alpha_2)}}
+     \xspace
+    }
+
+
+\newcommand{\fold}[2]{\begin{array}{l}
+                        {\sf fold~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\fork}[2]{\begin{array}{l}
+                        {\sf fork~} #1 \\
+                        {\sf ~~as~}
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+\newcommand{\case}[2]{\begin{array}{l}
+                        {\sf case~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+
+\begin{document}
+
+\maketitle
+
+\section{Type Inferencing}
+
+
+
+\subsection {Introduction}
+This chapter deals with the type inferencing of MPL programs, namely functions, processes, terms and process commands when they are not type annotated and type checking when they are. Type inference process involves two main steps.
+\begin {itemize}
+\item Generating Type Equations 
+\item Solving Type Equations ~~\\
+\end{itemize}
+In this chapter, the type equations generation for the Sequential MPL (terms and functions) is dicussed first followed by that of the Concurrent MPL (process commands and processes). 
+~~\\~~\\
+Lets deconstruct the type Inferencing algorithm to gain a better understanding. It has two main parts.
+\begin {itemize}
+\item {\bf Generation of Type Equations} - Type Equations captures the constraint relationship between the different constructs of
+a program.
+\item {\bf Solving Type Equation} - The type equations are solved to find out the type of a program construct.   
+\end{itemize}
+
+\subsection {Generating Type Equations }
+ Type Equations captures the constraint relationship between the different constructs of a program.
+\subsubsection {Generating Type Equations for Sequential Terms}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+~ \\
+
+% ---------------------------------------------------
+% ---------------------- Constructor ----------------
+% ---------------------------------------------------
+\infer [\rm cons]
+  { \Gamma \vdash \cons ([t_1,\ldots,t_n]):T  ~~~
+    \left\langle
+        \exists \,
+        \begin
+          {array}[c]{l}
+          T_1,\ldots,T_n, \\
+          A_1,\ldots,A_n .
+        \end{array}
+        \begin
+          {array}[c]{l} T = O_{new}\\
+          T_1 = I_{1,new},\,\ldots,\,T_n = I_{n,new}\\
+          E_1,E_2,\ldots,E_n
+        \end{array} 
+    \right\rangle   
+  } 
+  { \Gamma \vdash t_1:T_1 ~~~\langle E_1 \rangle && \ldots && ~~~
+    \Gamma \vdash t_n:T_n ~~~\langle E_n \rangle
+  }
+
+\\ ~ \\ \\ ~ \\
+% ---------------------------------------------------
+% ---------------------- Destructor -----------------
+% ---------------------------------------------------
+
+\infer [\rm dest]
+  { \Gamma \vdash \dest ([t_1,\ldots,t_n]):T  ~~~
+    \left\langle
+        \exists \,
+        \begin
+          {array}[c]{l}
+          T_1,\ldots,T_n, \\
+          A_1^{\prime},\ldots,A_n^{\prime} .
+        \end{array}
+        \begin
+          {array}[c]{l} T = O_{new}\\
+          T_1 = I_{1,new},\,\ldots,\,T_n = I_{n,new}\\
+          E_1,E_2,\ldots,E_n
+        \end{array} 
+    \right\rangle   
+  } 
+  { \Gamma \vdash t_1:T_1 ~~~\langle E_1 \rangle && \ldots && ~~~
+    \Gamma \vdash t_n:T_n ~~~\langle E_n \rangle
+  }
+
+\\ ~ \\
+\hline
+\end{tabular}
+\caption{Rules for type inference}
+\label{type-inference for Cons and Dest}
+\end{center}
+\end{table}
+
+
+% ---------------------------------------------------
+% ---------------------- Fold -----------------------
+% ---------------------------------------------------
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+~~\\
+\infer {
+         \Gamma \vdash 
+         \fold {t} 
+          {
+            \begin{array}[c]{lcl}
+              {C_1:X_{11},\ldots,X_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {C_m:X_{m1},\ldots,X_{mn}} & \to & t_n 
+            \end{array}          
+          }:T  ~~~
+            \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,T_1,\ldots,T_m, \\
+                  T_{11},\ldots,T_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  T_{m1},\ldots,T_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0 = D_{new}\\
+                  T_1 = T,\ldots,T_m = T\\
+                  T_{11}= F_{11,new},\ldots,T_{11}= F_{1a,new}\\
+                  \qquad\qquad \vdots \\
+                  T_{m1}= F_{m1,new},\ldots,T_{mn}= F_{mn,new}\\
+                  E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle  
+       }
+       {
+         t:T_0 ~~ \langle E_0 \rangle,~~
+         X_{11}:T_{11},\ldots,X_{1a}:T_{1a} \vdash t_1 : T_1
+         ~~ \langle E_1 \rangle,~
+         \ldots,~~
+         X_{m1}:T_{m1},\ldots,X_{mn}:T_{mn} \vdash t_m : T_m
+         ~~ \langle E_m \rangle
+       }
+\\ ~ \\
+\hline
+\end{tabular}
+\caption{Typing rules for fold}
+\label{type-inference for Fold}
+\end{center}
+\end{table}
+~~\\~~\\
+
+% ---------------------------------------------------
+% ---------------------- Case -----------------------
+% ---------------------------------------------------
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+~~\\
+\infer {
+         \Gamma \vdash 
+         \case {t} 
+          {
+            \begin{array}[c]{lcl}
+              {C_1:X_{11},\ldots,X_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {C_m:X_{m1},\ldots,X_{mn}} & \to & t_n 
+            \end{array}          
+          }:T  ~~~
+            \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,T_1,\ldots,T_m, \\
+                  T_{11},\ldots,T_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  T_{m1},\ldots,T_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0 = D_{new}\\
+                  T_1 = T,\ldots,T_m = T\\
+                  T_{11}= F_{11,new},\ldots,T_{11}= F_{1a,new}\\
+                  \qquad\qquad \vdots \\
+                  T_{m1}= F_{m1,new},\ldots,T_{mn}= F_{mn,new}\\
+                  E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle  
+       }
+       {
+         t:T_0 ~~ \langle E_0 \rangle,~~
+         X_{11}:T_{11},\ldots,X_{1a}:T_{1a} \vdash t_1 : T_1
+         ~~ \langle E_1 \rangle,~
+         \ldots,~~
+         X_{m1}:T_{m1},\ldots,X_{mn}:T_{mn} \vdash t_m : T_m
+         ~~ \langle E_m \rangle
+       }
+\\ ~ \\
+\hline
+\end{tabular}
+\caption{Typing rules for Case}
+\label{type-inference for Case}
+\end{center}
+\end{table}
+~~\\~~\\
+
+\end {document}
+
