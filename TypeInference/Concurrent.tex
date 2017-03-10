@@ -1,0 +1,599 @@
+\documentclass[11pt]{article}
+
+\title{Typing Rules Generation for Concurrent MPL}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Special symbol macros ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\x}{\times}
+\newcommand{\PhiGamma} {\Phi~|~\Gamma}
+\newcommand{\VdashDel} {\Vdash \Delta} 
+\newcommand{\ox}{\otimes}
+\newcommand{\context}[2]{#1 \left[\hspace{-1.7pt}\left[ #2 \right]\hspace{-1.7pt}\right]}
+\newcommand{\bag}[1]{\{\hspace{-2.5pt}[ #1 ]\hspace{-2.5pt}\}}
+\newcommand{\cons}{\ensuremath{{\sf cons~}}\xspace}
+\newcommand{\dest}{\ensuremath{{\sf dest~}}\xspace}
+\newcommand{\get}{\ensuremath{{\sf get ~ x ~\alpha~}}\xspace}
+\newcommand{\putC}{\ensuremath{{\sf put ~ t ~\alpha~}}\xspace} 
+\newcommand{\close}{\ensuremath{{\sf close ~\alpha~}}\xspace}
+\newcommand{\halt}{\ensuremath{{\sf halt ~\alpha~}}\xspace}
+\newcommand{\hput}{\ensuremath{{\sf hput ~ H ~ on ~\alpha~}}\xspace}
+\newcommand{\plug}{\ensuremath{{\sf plug ~ (\alpha_1,\ldots,\alpha_n) ~(s_1,s_2)}}\xspace}
+
+\newcommand{\splitC}
+    {
+     \ensuremath{{\sf split ~~\alpha~~ (\alpha_1,\alpha_2)}}
+     \xspace
+    }
+
+
+\newcommand{\fold}[2]{\begin{array}{l}
+                        {\sf fold~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\fork}[2]{\begin{array}{l}
+                        {\sf fork~} #1 \\
+                        {\sf ~~as~}
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+\newcommand{\hcase}[2]{\begin{array}{l}
+                        {\sf hcase~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+\newcommand{\pcase}[2]{\begin{array}{l}
+                        {\sf pcase~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+\begin{document}
+
+\maketitle
+
+\section{Type Inferencing}
+This chapter deals with the generation of the type equations for the Concurrent MPL. The types in the concurrent world are known as protocols, i.e the type of a channel is also called a protocol.
+~~\\~~\\
+The protocols are formed using a few basic protocol lsited below.
+\begin {itemize}
+  \item Get
+  \item Put
+  \item $\otimes$ (Tensor)
+  \item $\oplus$ (Par)
+  \item Neg
+  \item $\bot$ (Bottom)
+\end   {itemize} 
+ 
+In the following sections we will see the typing rules for the various Concurrent MPL Constructs.
+
+
+% ---------------------------------------------------
+% ---------------------- Get/Put---------------------
+% ---------------------------------------------------
+
+\subsection {get and put Command}
+ {\sf get} command, $\get$ gets a value on a channel $\alpha$ and binds that value to variable x.
+In order to type infer {\sf get}, the variable x should be added to the sequential context $\Phi$. The polarity of the channel decides whether the channel has a {\bf Get} or a {\bf Put} protocol. This is necessary to ensure that the protocols at the two ends of a channel connecting two processes match. Type of the variable is the first argument to the {\bf Get/Put} protocol. The second argument of the {\bf Get/Put} protocol is obtained by type inferring the channel $\alpha$ from the remaining process commands in the enhanced sequential context. 
+~~\\~~\\
+{\sf put} command, $\putC$ puts a seqential term t on the channel $\alpha$. Like with {\sf get}, polarity of $\alpha $ decides whether it ends up with a {\bf Get} or a {\bf Put} protocol. The term t is type inferred in the sequential context $\Phi$ to get the first argument of the {\bf Get/Put} protocol. The second argument of the {\bf Get/Put} protocol is obtained by type inferring the channel $\alpha$ from the remaining process commands in the original sequential context, $\Phi$.  
+
+\begin{mdframed} [style=MyFrame,userdefinedwidth=14cm,align=center,
+                  frametitle=Typing Rules for Get-Put,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+ \infer [\rm get]
+  {
+   \get.s:: \PhiGamma ,\alpha :T \VdashDel 
+    ~~~ \bigg\langle \exists \,X,S.\,T= Put(X,S),E 
+        \bigg\rangle 
+  }
+  { s::x:X,\PhiGamma,\alpha:S \VdashDel ~~~ \langle E \rangle
+  }~~\\~~\\
+
+\infer [\rm get]
+  {
+   \get.s:: \PhiGamma \Vdash \alpha :T,\Delta 
+    ~~~ \bigg\langle \exists \,X,S.\,T= Get(X,S),E 
+        \bigg\rangle 
+  }
+  { s::x:X,\PhiGamma \Vdash \alpha:S,\Delta ~~~ \langle E \rangle
+  }~~\\
+
+\infer [\rm put]
+  {
+   \putC.s:: \PhiGamma ,\alpha :T \VdashDel 
+    ~~~ \bigg\langle \exists \,X,S.\,T= Get(X,S),E_1,E_2 
+        \bigg\rangle 
+  }
+  { \Phi \vdash t:X ~~~\langle E_1 \rangle &
+    s::\PhiGamma,\alpha:S \VdashDel ~~~ \langle E_2 \rangle
+  }~~\\
+
+\infer [\rm put]
+  {
+   \putC.s:: \PhiGamma \Vdash \alpha :T,\Delta 
+    ~~~ \bigg\langle \exists \,X,S.\,T= Put(X,S),E_1,E_2 
+        \bigg\rangle 
+  }
+  { \Phi \vdash t:X ~~~\langle E_1 \rangle &
+    s::\PhiGamma \Vdash \alpha:S,\Delta ~~~ \langle E_2 \rangle
+  }
+
+\end{mdframed}
+
+
+% ---------------------------------------------------
+% ---------------------- Close/Halt------------------
+% ---------------------------------------------------
+\newpage
+\subsection {Close and Halt Command}
+The protocol as a result of {\sf close/halt} is $\bot$. When a channel is the last remaining channel in the input or the output context, then only it can be {\sf halted}.
+~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=12cm,align=center,
+                  frametitle=Typing Rules for close-halt,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm close]
+  {
+   \close.s:: \PhiGamma, \alpha:T \VdashDel 
+    ~~~ \bigg\langle T= \bot,E 
+        \bigg\rangle 
+  }
+  { s::\PhiGamma \VdashDel ~~~ \langle E \rangle
+  }~~\\~~\\
+
+\infer [\rm close]
+  {
+   \close.s:: \PhiGamma \Vdash \alpha:T,\Delta 
+    ~~~ \bigg\langle T= \bot,E 
+        \bigg\rangle 
+  }
+  { s::\PhiGamma \VdashDel ~~~ \langle E \rangle
+  }~~\\
+
+\infer [\rm halt]
+  {
+   \halt::\Phi ~| ~ \alpha:T \Vdash \phi 
+    ~~~ \bigg\langle T= \bot
+        \bigg\rangle 
+  }
+  { \phi::\Phi ~|~ \phi \Vdash \phi
+  }~~\\
+
+\infer [\rm halt]
+  {
+   \halt::\Phi ~| ~ \phi \Vdash \alpha:T
+    ~~~ \bigg\langle T= \bot 
+        \bigg\rangle 
+  }
+  { \phi::\Phi ~|~ \phi \Vdash \phi 
+  }
+
+\end{mdframed}
+
+
+% ---------------------------------------------------
+% ----------------------Split/Fork-------------------
+% ---------------------------------------------------
+
+\newpage
+\subsection {Split and Fork Command}
+~~\\
+{\sf split } and {\sf fork} commands come in a pair.\splitC, splits a channel $\alpha$ into two channels $\alpha_1$ and $\alpha_2$. Depending on the polarity of $\alpha$, the channels $\alpha_1$ and $\alpha_2$ are added to the respective channel contexts and are type inferred from the remainder of the process code. The protocol of the channel $\alpha$ is $\otimes$ or $\oplus$ of $\alpha_1$ and $\alpha_2$, depending on the polarity of $\alpha$.
+~~\\~~\\  
+{\sf fork} command spawns two processes from a single process. It assumes that one of the connected channels $\alpha$ splits into $\alpha_1$ and $\alpha_2$. Depending on the polarity of the channel $\alpha$, the channels $\alpha_1$ and $\alpha_2$ are added to the output/input contexts of the two forked processes.The two processes are type inferred with their respective process code. This yields the protocol for the channels $\alpha_1$ and $\alpha_2$. The protocol of the channel $\alpha$ is obtained by doing $\otimes$ or $\oplus$ with the types of $\alpha_1$ and $\alpha_2$ depending on the polarity of $\alpha$
+
+\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
+                  frametitle=Typing Rules for split-fork,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm split]
+  {
+   \splitC.s:: \PhiGamma ,\alpha :T \VdashDel 
+    ~~~ \Bigg\langle 
+          \exists \,T_1,T_2.\,T = T_1 \otimes T2,E 
+        \Bigg\rangle 
+  }
+  { s::\PhiGamma,\alpha_1:T_1,\alpha_2:T_2
+   \VdashDel ~~~ \langle E \rangle
+  }~~\\~~\\
+  
+\infer [\rm split]
+  {
+   \splitC.s:: \PhiGamma \Vdash \alpha :T,\Delta 
+    ~~~ \Bigg\langle 
+           \exists \,T_1,T_2.\,T= T_1 \oplus T_2,E 
+        \Bigg\rangle 
+  }
+  { s::\PhiGamma \Vdash \alpha_1:T_1,\alpha_2:T_2,\Delta ~~~ \langle E \rangle
+  }~~\\~~\\
+
+\infer [\rm fork]
+  {
+   \fork {\alpha} 
+         {
+           \begin{array}[c]{lcl}
+             \alpha_1 & \to & s_1 \\
+             \alpha_2 & \to & s_2 \\ 
+           \end{array}       
+         }::
+          \Phi ~ | ~ \Gamma_1,\Gamma_2 \Vdash 
+            \Delta_1,\alpha :T,\Delta_2  
+    ~~~ \Bigg\langle \exists \,T_1,T_2.\,T= T_1 \otimes T_2,E_1,E_2 
+        \Bigg\rangle 
+  }
+  { s_1::\Phi ~|~ \Gamma_1 \Vdash \Delta_1,
+  \alpha_1:T_1 ~~~ \langle E_1 \rangle &
+    s_2::\Phi ~|~ \Gamma_2 \Vdash \alpha_2:T_2,
+    \Delta_2 ~~~ \langle E_2 \rangle
+  }~~\\~~\\
+
+\infer [\rm fork]
+  {
+   \fork {\alpha} 
+         {
+           \begin{array}[c]{lcl}
+             \alpha_1 & \to & s_1 \\
+             \alpha_2 & \to & s_2 \\ 
+           \end{array}       
+         }::
+          \Phi ~ | ~ \Gamma_1,\alpha :T,\Gamma_2 \Vdash 
+            \Delta_1,\Delta_2  
+    ~~~ \Bigg\langle \exists \,T_1,T_2.\,T= T_1 \oplus T_2,E_1,E_2 
+        \Bigg\rangle 
+  }
+  { s_1::\Phi ~|~ \Gamma_1,\alpha_1:T_1  \Vdash 
+  \Delta_1 ~~~ \langle E_1 \rangle &
+    s_2::\Phi ~|~ \alpha_2:T_2,\Gamma_2 \Vdash
+    \Delta_2 ~~~ \langle E_2 \rangle
+  }
+
+\end{mdframed}
+
+% ---------------------------------------------------
+% ---------------------- Plug -----------------------
+% ---------------------------------------------------
+
+\newpage
+\subsection {plug command}
+~~\\
+{\sf plug} command connects two processes with a certain of channels. To one process these channels act as the input channels and to the other they act as the output channels. In order to type infer these channels, they should be added to the output channel context of the first process and the input channel context of the second process. Now the two processes are type inferred in the enhanced channel context and channels' protocols obtained from the two processes are equated.
+\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
+                  frametitle=Typing Rule for plug,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm plug]
+  {
+   \plug:: \PhiGamma \Vdash \Delta
+      ~~~  \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_1,\ldots,T_n,\\
+                  S_1,\ldots,S_n~~.\\
+                \end{array}
+                \begin {array}[c]{l} 
+                   T_1 = S_1,\ldots,T_n = S_n,\\
+                   E_1,E_2
+                \end{array} 
+            \Bigg\rangle  
+  }
+  { s_1::\Phi ~|~ \Gamma \Vdash \alpha_1:T_1,
+   \ldots,\alpha_n:T_n ,\Delta~~~ \langle E_1 \rangle &
+    s_2::\Phi ~|~ \Gamma,\alpha_1:S_1,
+   \ldots,\alpha_n:S_n 
+    \Vdash \Delta_2 ~~~ \langle E_2 \rangle
+  }
+
+\end{mdframed}
+
+
+% ---------------------------------------------------
+% --------------------- PCase -----------------------
+% ---------------------------------------------------
+
+\newpage
+\subsection {pcase command}
+~~\\
+{\sf pcase} or {\sf process case} command is the concurrent world counter part of the case command from the sequential world. It gives us the ability to branch on the diffrent constructors of a data type. corresponding to each branch some process commands are run.
+~~\\~~\\
+Lets defined a data type D, that has types variables $A_1$, $\ldots$, $A_k$ in the different constructors. $C_1$ $\ldots$ $C_m$ are the different constructors of the data D.
+For constructor $C_1$ ,$F_{11}$, $\ldots$, $F_{1a}$ repesent the input type of the constructor. 
+\begin{align*} 
+\forall A_1,~ \ldots,~A_k.~data~ D ~\to~ A =
+ & ~~ C_1 : F_{11},~ \ldots, ~ F_{1a} \to A \\
+ & ~~~~ \vdots \qquad\qquad \qquad\qquad \vdots \\ 
+ & ~~ C_m : F_{m1} ,~ \ldots, ~ F_{mn} \to A
+\end{align*}
+Lets $\alpha$ rename the type variables $A_1$, $\ldots$, $A_k$ with fresh type variables, $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$   in the different constructs of the definition above. The renamed constructs have been represented by adding a subscript N to the name of the construct. The renaming is done to avoid any conflict between the variable names used in the the data construct with that used in the equation. 
+\begin{align*} 
+ & ~~ D_N = (\Lambda A_1,\ldots,A_k.~D)~A_1^{\prime},\ldots,A_k^{\prime} \\
+ & ~~ I_{11,N} = (\Lambda A_1,\ldots,A_k.~ I_{11})~A_1^{\prime},\ldots,A_k^{\prime} \\
+ & ~~~~ \vdots \qquad\qquad \qquad\qquad \vdots \\ 
+ & ~~ I_{mn,N} = (\Lambda A_1,\ldots,A_k.~ I_{mn})~A_1^{\prime},\ldots,A_k^{\prime} \\
+\end{align*}
+
+\begin{mdframed} [style=MyFrameSp,userdefinedwidth=19cm,align=center,
+                  frametitle=Typing Rules for process case,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+{\small
+\infer {
+         \Gamma \vdash 
+         \pcase {t} 
+          {
+            \begin{array}[c]{lcl}
+              {C_1:X_{11},\ldots,X_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots ~~:: \PhiGamma \VdashDel  \\
+              {C_m:X_{m1},\ldots,X_{mn}} & \to & t_m 
+            \end{array}          
+          } \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,\\
+                  T_{11},\ldots,T_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  T_{m1},\ldots,T_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0 = D_{new}\\
+                  T_{11}= F_{11,N},\ldots,T_{11}= F_{1a,N}\\
+                  \qquad\qquad \vdots \\
+                  T_{m1}= F_{m1,N},\ldots,T_{mn}= F_{mn,N}\\
+                  E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle  
+       }
+       {
+         t:T_0 ~~ \langle E_0 \rangle,~~
+         t_1::X_{11}:T_{11},\ldots,X_{1a}:T_{1a} ,\PhiGamma \VdashDel
+         ~~ \langle E_1 \rangle,~
+         \ldots,~~
+         t_m::X_{m1}:T_{m1},\ldots,X_{mn}:T_{mn} ,\PhiGamma \VdashDel
+         ~~ \langle E_m \rangle
+       }
+}
+\end{mdframed}
+
+% ---------------------------------------------------
+% ---------------------- run-------------------------
+% ---------------------------------------------------
+\newpage
+
+\subsection {run command}
+{\sf run} command is used to call a process.The type of the process to be called is looked up from the symbol table. In the below representation, process p's type is comprised of s sequential types $T_1$, $\ldots$ $T_s$, m input channels of type $I_1$, $\ldots$ $I_m$ and n output channels of type $O_1$, $\ldots$ $O_n$. Like in the previous command {\bf\sf case}, the different constructs of the process type are renamed.
+\begin{align*} 
+ & p:\forall A_1,~ \ldots,~A_k.~T_1,\ldots,T_s | ~I_1,\ldots,I_m \to ~ O_1,\ldots,O_n 
+ \\~\\
+ & ~~ T_{1,N} = (\Lambda A_1,\ldots,A_k.~T_1)~A_1^{\prime},\ldots,A_k^{\prime} \\
+ & ~~~~ \vdots \qquad\qquad \qquad\qquad \vdots \\  
+ & ~~ I_{1,N} = (\Lambda A_1,\ldots,A_k.~I_1)~A_1^{\prime},\ldots,A_k^{\prime} \\
+ & ~~~~ \vdots \qquad\qquad \qquad\qquad \vdots \\ 
+ & ~~ O_{n,N} = (\Lambda A_1,\ldots,A_k.~ O_n)~A_1^{\prime},\ldots,A_k^{\prime} \\
+\end{align*}
+To type infer the run command, the sequential terms are type inferred in the sequential context $\Phi$ and the types obtained for these terms are equated with the types of the terms obtained from the process type looked up from the symbol table. The protocol of the input and the output channels are directly obtained from the process type. 
+
+\begin{mdframed} [style=MyFrameSp,userdefinedwidth=19cm,align=center,
+                  frametitle=Typing Rules for run,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+{\small
+\infer [\rm run]
+  {
+   \begin {array}[c]{l}
+    {
+      \sf p_1 ~(x_1, \ldots x_s | \alpha_1,\ldots,
+      \alpha_m \to \beta_1 \ldots \beta_m)
+    }
+   :: \PhiGamma ,\alpha_1 : P_1 \ldots \alpha_m :P_m \Vdash
+      \beta_1:Q_1,\ldots,\beta_n:Q_n,\Delta \\ 
+      \\
+      \hskip 20em \Bigg\langle 
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  X_1,\ldots,X_s,\\
+                  P_1,\ldots,P_m~~.\\
+                  Q_1,\ldots,Q_n,\\
+                  A_1^{\prime},\ldots,A_k^{\prime}
+                \end{array}
+                \begin {array}[c]{l} 
+                   X_1 = S_{1,N},\ldots,X_s = T_{s,N},\\
+                   P_1 = I_{1,N},\ldots,P_m = I_{m,N},\\
+                   Q_1 = O_{1,N},\ldots,Q_n = O_{n,N},\\
+                   E_1,\ldots,E_s
+                \end{array} 
+            \Bigg\rangle 
+    \end{array} 
+  }
+  { \Phi \vdash  x_1 : X_1 \langle E_1 \rangle , \ldots,
+    \Phi \vdash  x_s : X_s \langle E_s \rangle
+  }
+}  
+\end{mdframed}
+
+
+
+% ---------------------------------------------------
+% ---------------------- Close/Halt------------------
+% ---------------------------------------------------
+\newpage
+\subsection {id-neg Command}
+~~\\
+{\sf id} command is used to equate two channels. When the the channels have different polarities then their channel protocols are equated other wise negation of one channel's protocol is equated with the protcol of the other channel.   
+\begin{mdframed} [style=MyFrame,userdefinedwidth=13cm,align=center,
+                  frametitle=Typing Rules for id-neg,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\
+\infer [\rm id]
+  {
+   {\sf \alpha ~ |=| ~ \beta} :: \phi ~ | ~ \alpha:T_1 \Vdash 
+    \beta:T_2
+    ~~~ \left\langle T_1 = T_2 
+        \right\rangle 
+  }
+  { 
+  }~~\\~~\\
+
+\infer [\rm id]
+  {
+   {\sf \alpha ~ |=| ~ \beta} :: \phi ~ | ~ \beta:T_2 \Vdash 
+    \alpha:T_1 
+    ~~~ \left\langle T_1 = T_2 
+        \right\rangle 
+  }
+  { 
+  }~~\\
+
+\infer [\rm id]
+  {
+   {\sf \alpha ~ |=| ~ neg ~ \beta} :: \phi ~ | ~ \alpha:T_1,\beta:T_2 \Vdash \phi 
+    ~~~ \left\langle T_1 = Neg ~ T_2 
+        \right\rangle 
+  }
+  { 
+  }~~\\
+
+\infer [\rm id]
+  {
+   {\sf \alpha ~ |=| ~ neg ~ \beta} :: \phi ~ | ~ \phi \Vdash \alpha:T_1,\beta:T_2
+    ~~~ \left\langle T_1 = Neg ~ T_2 
+        \right\rangle 
+  }
+  { 
+  }
+\end{mdframed}
+
+
+
+% ---------------------------------------------------
+% ---------------------- Hcase/HPut------------------
+% ---------------------------------------------------
+\newpage
+\subsection {hcase-hput Command}
+~~\\
+$\hput$ command puts a handle H on a channel $\alpha$. The protocol of the handle H becomes the protocol of the channel $\alpha$. The protocol of the channel $\alpha$ inferred from the remaining process commands should be equated to the input type of the handle H obtained from the symbol table. 
+~~\\~~\\
+{\sf hcase} command branches on the handles of a protocol that a channel $\alpha$ has received. Corresponding to every handle certain process commands are run. The protocol of channel $\alpha$ is the protocol of which the cased handles are a part of. The process commands corresponding to every handle will produce a protocol for channel $\alpha$. This protocol should be equated with the input type of that handle. The input type of a handle can be obtained from the symbol table. 
+~~\\~~\\
+Let P be  a protocol definition with handles $H_1$ $\ldots$ $H_n$. $T_1$ $\ldots$ $T_n$ are the input types of the handles respectively. $A_1$ $\ldots$ $A_k$ are the union of the type variables used in this protocol defintion.
+\begin{align*} 
+\forall A_1,~ \ldots,~A_k.~protocol~ P ~\implies~ C =
+ & ~~ H_1 : T_{1} \implies C \\
+ & ~~~~ \vdots \qquad \vdots \qquad \vdots \\ 
+ & ~~ H_n : T_{n} \implies C 
+\end{align*}
+We $\alpha$ rename the input type of the handles, $T_1$, $\ldots$, $T_n$ and protocoll P with fresh type variables.
+\begin{align*} 
+ & ~~ P_N = (\Lambda A_1,\ldots,A_k.~P)~A_1^{\prime},\ldots,A_k^{\prime} \\
+ & ~~ T_{i,N} = (\Lambda A_1,\ldots,A_k.~ T_{i})~A_1^{\prime},\ldots,A_k^{\prime} \\
+\end{align*}
+
+\begin{mdframed} [style=MyFrameSp,userdefinedwidth=19cm,align=center,
+                  frametitle=Typing Rules for hput-hcase,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+\infer [\rm hput]
+  {
+   \hput . s :: \PhiGamma,\alpha : T \VdashDel
+    ~~~
+        \bigg\langle
+          \exists \,S_1,A_1^{\prime},\ldots,A_k^{\prime}~~.\,
+          T = P_N,~S_1 = T_{1,N}~,~~E
+        \bigg\rangle 
+  }
+  { 
+    s:: \PhiGamma , \alpha :S_1 \VdashDel ~~ \langle E \rangle
+  }~~\\~~\\
+
+\infer [\rm hcase] {
+         \hcase {\alpha} 
+          {
+            \begin{array}[c]{lcl}
+              {H_1} & \to & c_1 \\
+              \vdots & \vdots & \vdots ~~:: \PhiGamma ,\alpha : T \VdashDel  \\
+              {H_n} & \to & c_n 
+            \end{array}          
+          } \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                   A_1^{\prime},\ldots,A_k^{\prime},\\
+                   S_1,\ldots,S_n~~.
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0  = P_{N}\\
+                  S_{1}= T_{1,N},\ldots,S_n= T_{n,N}\\
+                  E_1,\ldots,E_n
+                \end{array} 
+            \Bigg\rangle  
+       }
+       {
+         c_1::\PhiGamma ,\alpha : S_1 \VdashDel
+         ~~ \langle E_1 \rangle,~
+         \ldots,~~
+         c_n::\PhiGamma ,\alpha : S_n \VdashDel
+         ~~ \langle E_n \rangle
+       }
+
+\end{mdframed}
+
+
+\end {document}
+
