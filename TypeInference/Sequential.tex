@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 
 \title{Type Inferencing in MPL}
+\title{Typing Rules for Concurrent MPL}
 \usepackage{amsmath }
 \usepackage{framed}
 \usepackage{proof}
@@ -10,6 +11,7 @@
 \usepackage{textcomp,xspace}
 \usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
 \usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
 \usepackage{ifpdf}
 \ifpdf
   \usepackage{epstopdf}
@@ -19,12 +21,33 @@
 \AfterEndEnvironment{tabular}{\end{center}}
 
 
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     Special symbol macros ...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newcommand{\x}{\times}
 \newcommand{\PhiGamma} {\Phi~|~\Gamma}
+\newcommand{\Gvdash} {\Gamma \vdash}
 \newcommand{\VdashDel} {\Vdash \Delta} 
 \newcommand{\ox}{\otimes}
 \newcommand{\context}[2]{#1 \left[\hspace{-1.7pt}\left[ #2 \right]\hspace{-1.7pt}\right]}
@@ -63,7 +86,23 @@
                         \left| \begin{array}{lcl} #2 \end{array} 
                         \right.\end{array}}
 
+\newcommand{\rec}[1]{\begin{array}{l}
+                        {\sf rec~} \\
+                        {\sf ~of~}
+                        \left| \begin{array}{lcl} #1 \end{array} 
+                        \right.\end{array}}
 
+\newcommand{\letS}[2]{\begin{array}{l}
+                        {\sf let ~} #1 \\
+                        {\sf ~where~} \\
+                        ~~~\left|\begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+\newcommand{\fun}[1]{\begin{array}{l}
+                        {\sf fun~ f} \\~~ 
+                        \left| \begin{array}{lcl} #1 \end{array} 
+                        \right.\end{array}}
 
 \begin{document}
 
@@ -71,159 +110,217 @@
 
 \section{Type Inferencing}
 
-
-
 \subsection {Introduction}
-This chapter deals with the type inferencing of MPL programs, namely functions, processes, terms and process commands when they are not type annotated and type checking when they are. Type inference process involves two main steps.
+This chapter deals with the type inferencing of various MPL constructs, namely functions, processes, terms and process commands when they are not type annotated and type checking when they are. Type inference process involves two main steps.
 \begin {itemize}
-\item Generating Type Equations 
-\item Solving Type Equations ~~\\
-\end{itemize}
-In this chapter, the type equations generation for the Sequential MPL (terms and functions) is dicussed first followed by that of the Concurrent MPL (process commands and processes). 
+\item Generating Type Equations - Type Equations represent the constraint relationship between the different parts of the construct being type inferred. $\exists$ used in the typing rules here is not be existential quantification from the predicate logic rather it is used a notation as a type binder.
 ~~\\~~\\
-Lets deconstruct the type Inferencing algorithm to gain a better understanding. It has two main parts.
-\begin {itemize}
-\item {\bf Generation of Type Equations} - Type Equations captures the constraint relationship between the different constructs of
-a program.
-\item {\bf Solving Type Equation} - The type equations are solved to find out the type of a program construct.   
+Using the typing rules, a series of equations are generated going from botton to top or the  proof search direction. The equation structure is not linear rather it is hierarchical capturing the shape of the type inference tree. Thus,placement of an equation inside a type equation roughly resembles the location within a type inference tree that resulted in that equation within the type equation. Advantage of this approach is faster solving of type equations and better localisation of type errors.     
+\item Solving Type Equations - The type equations hence forth generated are solved in order to get the most general type of a given construct.
 \end{itemize}
+In this chapter, the type equations generation for the Sequential MPL (terms and functions) is dicussed first followed by that of the Concurrent MPL (process commands and processes). This is followed by an alogrithm to solve the type equations to get the most general type.
 
-\subsection {Generating Type Equations }
- Type Equations captures the constraint relationship between the different constructs of a program.
-\subsubsection {Generating Type Equations for Sequential Terms}
+\section {Generating Type Equations for sequential terms }
 
-\begin{table}
-\begin{center}
-\begin{tabular}{|c|} \hline
-~ \\
+\subsection {var term}
+% ---------------------------------------------------
+% ---------------------- Var -----------------------
+% ---------------------------------------------------
+In order to infer a variable a variable, it should be looked up in the context. If it is present in the context then both the types of the variables are equated.
+~~\\~~\\
+\newpage
+\begin{mdframed} [style=MyFrame,userdefinedwidth=8cm,align=center,
+                  frametitle=Typing rule for var,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+\infer [\rm id]
+  {
+    x:P , \Gamma \vdash x : Q  
+    ~~~ \bigg\langle P = Q 
+        \bigg\rangle 
+  }
+  { 
+  }
+\end{mdframed}
+~~\\~~\\
+% ---------------------------------------------------
+% ---------------------- default---------------------
+% ---------------------------------------------------
+\subsection {default term}
+{\sf default} term is used as the catch all branch in the guard branches of the switch statement in the language. The type of the default term is Bool. 
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=9cm,align=center,
+                  frametitle=Typing rule for default,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm default]
+  {
+   \Gvdash default: T  
+    ~~~ \bigg\langle T = Bool 
+        \bigg\rangle 
+  }
+  { 
+  }
+\end{mdframed}
+~~\\~~\\
 
 % ---------------------------------------------------
-% ---------------------- Constructor ----------------
+% ---------------------- Constants-------------------
 % ---------------------------------------------------
+\subsection {constant term}
+{\sf constants} can be one of the base types, like Int, Double and Char
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=10cm,align=center,
+                  frametitle=Typing rule for constants,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\
+\infer [\rm int]
+  {
+    \Gamma \vdash cInt ~n : T  
+    ~~~ \bigg\langle T = Int 
+        \bigg\rangle 
+  }
+  { 
+  }~~\\~~\\
+\infer [\rm double]
+  {
+    \Gamma \vdash cDouble ~n : T  
+    ~~~ \bigg\langle T = Double 
+        \bigg\rangle 
+  }
+  { 
+  }~~\\~~\\
+\infer [\rm char]
+  {
+    \Gamma \vdash cChar ~n : T  
+    ~~~ \bigg\langle T = Char 
+        \bigg\rangle 
+  }
+  { 
+  }
+
+\end{mdframed}
+% ---------------------------------------------------
+% ---------Constructor/Destructor--------------------
+% ---------------------------------------------------
+~~\\~~\\
+\subsection {case and cons term}
+{\sf cons } term creates a data with the constructors of that data type.
+~~\\~~\\
+{\sf case} term branches on the different constructors of the data type. Depending on the branch selected, some code can be executed. The type of a case term is the type of the term to be run when a branch is selected. A well typed case construct will have all the code terms corresponding to all the branches/construcors of the same type.
+~~\\~~\\
+Let us define a data type D. $A_1$, $\ldots$, $A_k$ is the union of type variables used in the different constructors of the data type. $C_1$ $\ldots$ $C_m$ are the different constructors of the data type D. For $C_1$ ,$F_{11}$, $\ldots$, $F_{1a}$ repesent the input type of the destructor.
+~~\\~~\\
+The renamed constructs have been represented by adding a subscript N to the name of the construct. The renaming is done to avoid any conflict between the variable names used in the the data construct with that used in the equation. 
+\begin{align*} 
+\forall A_1,~ \ldots,~A_k.~data~ D ~\to~ A =
+ & ~~ C_1 : F_{11},~ \ldots, ~ F_{1a} \to A \\
+ & ~~~~ \vdots \qquad\qquad \vdots \qquad\qquad \vdots \\ 
+ & ~~ C_m : F_{m1} ,~ \ldots, ~ F_{mn} \to A
+\end{align*}
+Renaming the different constructs in the data D with fresh variables $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ gives the following constructs. 
+\begin{align*}
+ & ~~ D_{N} ~~~ = (\Lambda A_1,\ldots,A_k.~ D)~A_1^{\prime},\ldots,A_k^{\prime}\\ 
+ & ~~ F_{xy,N} = (\Lambda A_1,\ldots,A_k.~F_{xy})~A_1^{\prime},\ldots,A_k^{\prime} 
+ ~~~  \{1 \leq x \leq m,~1 \leq y \leq p ~|~ p \in \{a,b,\ldots,n\} \} \\
+ \end{align*}
+The output type of the {\sf cons} term is the data type of which it is a constructor of. The function type of the constructor is looked up from the symbol table and the different arguments of the constructor are assigned their corresponding types from the input types of the afore mentioned function type.$E_1$,$\ldots$,$E_n$ are the type equations generated for the terms $t_1$, $\ldots$, $t_n$ respectively.
+~~\\~~\\
+The type of the {\sf case} term is the type of the term corresponding to a branch/constructor in the case construct. A well typed case term will have the same type of the terms corresponding to different branches. The types of the input arguments for a constructor is obtained by looking up the function type for that constructor from the symbol table.
+~~\\~~\\
+\newpage
+\begin{mdframed} [style=MyFrame,userdefinedwidth=21cm,align=center,
+                  frametitle=Typing Rule for cons and case,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
 \infer [\rm cons]
-  { \Gamma \vdash \cons ([t_1,\ldots,t_n]):T  ~~~
+  { \Gamma \vdash \cons (C_i,[t_{1},\ldots,t_j]):T  ~~~
     \left\langle
         \exists \,
         \begin
           {array}[c]{l}
-          T_1,\ldots,T_n, \\
+          T_1,\ldots,T_j, \\
           A_1,\ldots,A_n .
         \end{array}
         \begin
-          {array}[c]{l} T = O_{new}\\
-          T_1 = I_{1,new},\,\ldots,\,T_n = I_{n,new}\\
-          E_1,E_2,\ldots,E_n
+          {array}[c]{l} T = D_{N}\\
+          T_1 = F_{i1,N},\,\ldots,\,T_j = I_{ij,N}\\
+          E_1,E_2,\ldots,E_j
         \end{array} 
     \right\rangle   
   } 
   { \Gamma \vdash t_1:T_1 ~~~\langle E_1 \rangle && \ldots && ~~~
-    \Gamma \vdash t_n:T_n ~~~\langle E_n \rangle
-  }
+    \Gamma \vdash t_j:T_j ~~~\langle E_j \rangle
+  }~~\\~~\\~~\\
 
-\\ ~ \\ \\ ~ \\
-% ---------------------------------------------------
-% ---------------------- Destructor -----------------
-% ---------------------------------------------------
-
-\infer [\rm dest]
-  { \Gamma \vdash \dest ([t_1,\ldots,t_n]):T  ~~~
-    \left\langle
-        \exists \,
-        \begin
-          {array}[c]{l}
-          T_1,\ldots,T_n, \\
-          A_1^{\prime},\ldots,A_n^{\prime} .
-        \end{array}
-        \begin
-          {array}[c]{l} T = O_{new}\\
-          T_1 = I_{1,new},\,\ldots,\,T_n = I_{n,new}\\
-          E_1,E_2,\ldots,E_n
-        \end{array} 
-    \right\rangle   
-  } 
-  { \Gamma \vdash t_1:T_1 ~~~\langle E_1 \rangle && \ldots && ~~~
-    \Gamma \vdash t_n:T_n ~~~\langle E_n \rangle
-  }
-
-\\ ~ \\
-\hline
-\end{tabular}
-\caption{Rules for type inference}
-\label{type-inference for Cons and Dest}
-\end{center}
-\end{table}
-
-
-% ---------------------------------------------------
-% ---------------------- Fold -----------------------
-% ---------------------------------------------------
-\begin{table}
-\begin{center}
-\begin{tabular}{|c|} \hline
-~~\\
-\infer {
-         \Gamma \vdash 
-         \fold {t} 
-          {
-            \begin{array}[c]{lcl}
-              {C_1:X_{11},\ldots,X_{1a}} & \to & t_1 \\
-              \vdots & \vdots & \vdots \\
-              {C_m:X_{m1},\ldots,X_{mn}} & \to & t_n 
-            \end{array}          
-          }:T  ~~~
-            \Bigg\langle
-                \exists \,
-                \begin
-                  {array}[c]{l}
-                  T_0,T_1,\ldots,T_m, \\
-                  T_{11},\ldots,T_{1a},\\
-                  \qquad \vdots \qquad\qquad .\\
-                  T_{m1},\ldots,T_{mn},\\
-                  A_1^{\prime},\ldots,A_k^{\prime} 
-                \end{array}
-                \begin
-                  {array}[c]{l} 
-                  T_0 = D_{new}\\
-                  T_1 = T,\ldots,T_m = T\\
-                  T_{11}= F_{11,new},\ldots,T_{11}= F_{1a,new}\\
-                  \qquad\qquad \vdots \\
-                  T_{m1}= F_{m1,new},\ldots,T_{mn}= F_{mn,new}\\
-                  E_1,E_2,\ldots,E_m
-                \end{array} 
-            \Bigg\rangle  
-       }
-       {
-         t:T_0 ~~ \langle E_0 \rangle,~~
-         X_{11}:T_{11},\ldots,X_{1a}:T_{1a} \vdash t_1 : T_1
-         ~~ \langle E_1 \rangle,~
-         \ldots,~~
-         X_{m1}:T_{m1},\ldots,X_{mn}:T_{mn} \vdash t_m : T_m
-         ~~ \langle E_m \rangle
-       }
-\\ ~ \\
-\hline
-\end{tabular}
-\caption{Typing rules for fold}
-\label{type-inference for Fold}
-\end{center}
-\end{table}
-~~\\~~\\
-
-% ---------------------------------------------------
-% ---------------------- Case -----------------------
-% ---------------------------------------------------
-\begin{table}
-\begin{center}
-\begin{tabular}{|c|} \hline
-~~\\
-\infer {
+\infer [\rm case]{
          \Gamma \vdash 
          \case {t} 
           {
             \begin{array}[c]{lcl}
-              {C_1:X_{11},\ldots,X_{1a}} & \to & t_1 \\
+              {C_1~x_{11},\ldots,x_{1a}} & \to & t_1 \\
               \vdots & \vdots & \vdots \\
-              {C_m:X_{m1},\ldots,X_{mn}} & \to & t_n 
+              {C_m~x_{m1},\ldots,x_{mn}} & \to & t_n 
+            \end{array}          
+          }:T  ~~~
+            \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,\\
+                  T_1,\ldots,T_m, \\
+                  T_{11},\ldots,T_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  T_{m1},\ldots,T_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0 = D_{N}\\
+                  T_1 = T,\ldots,T_m = T\\
+                  T_{11}= F_{11,N},\ldots,T_{11}= F_{1a,N}\\
+                  \qquad\qquad \vdots \\
+                  T_{m1}= F_{m1,N},\ldots,T_{mn}= F_{mn,N}\\
+                  E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle  
+       }
+       {
+         t:T_0 ~ \langle E_0 \rangle &&
+         x_{11}:T_{11},\ldots,x_{1a}:T_{1a} \vdash t_1 : T_1
+         ~ \langle E_1 \rangle &&
+         \ldots &&
+         x_{m1}:T_{m1},\ldots,x_{mn}:T_{mn} \vdash t_m : T_m
+         ~ \langle E_m \rangle
+       }~~\\~~\\     
+\end{mdframed}
+
+~~\\~~\\
+
+% ---------------------------------------------------
+% ---------------------- Fold -----------------------
+% ---------------------------------------------------
+\subsection {fold term}
+{\sf fold} is used to implement higher order primitive recursive functions which gurantees termination. For all the constructors of a data type, their fold functions are  inserted in the symbol table. 
+~~\\~~\\
+The type of the fold term is the type of the term corresponding to a branch/constructor in the fold construct. A well typed fold term will have the same type of the terms corresponding to different branches. The types of the input arguments for a branch is obtained by looking up the fold function for that constructor from the symbol table.
+~~\\~~\\
+\begin{mdframed} [style=MyFrameSp,userdefinedwidth=19.5cm,align=center,
+                  frametitle=Typing Rule for fold,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\
+\infer [\rm fold] {
+         \Gamma \vdash 
+         \fold {t} 
+          {
+            \begin{array}[c]{lcl}
+              {C_1:x_{11},\ldots,x_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {C_m:x_{m1},\ldots,x_{mn}} & \to & t_n 
             \end{array}          
           }:T  ~~~
             \Bigg\langle
@@ -240,29 +337,420 @@ a program.
                   {array}[c]{l} 
                   T_0 = D_{new}\\
                   T_1 = T,\ldots,T_m = T\\
-                  T_{11}= F_{11,new},\ldots,T_{11}= F_{1a,new}\\
+                  T_{11}= F_{11,N},\ldots,T_{11}= F_{1a,N}\\
                   \qquad\qquad \vdots \\
-                  T_{m1}= F_{m1,new},\ldots,T_{mn}= F_{mn,new}\\
+                  T_{m1}= F_{m1,N},\ldots,T_{mn}= F_{mn,N}\\
                   E_1,E_2,\ldots,E_m
                 \end{array} 
             \Bigg\rangle  
        }
        {
-         t:T_0 ~~ \langle E_0 \rangle,~~
-         X_{11}:T_{11},\ldots,X_{1a}:T_{1a} \vdash t_1 : T_1
-         ~~ \langle E_1 \rangle,~
-         \ldots,~~
-         X_{m1}:T_{m1},\ldots,X_{mn}:T_{mn} \vdash t_m : T_m
-         ~~ \langle E_m \rangle
+         t:T_0 ~ \langle E_0 \rangle &&
+         x_{11}:T_{11},\ldots,x_{1a}:T_{1a} \vdash t_1 : T_1
+         ~ \langle E_1 \rangle &&
+         \ldots &&
+         x_{m1}:T_{m1},\ldots,x_{mn}:T_{mn} \vdash t_m : T_m
+         ~ \langle E_m \rangle
+       }       
+\end{mdframed}
+
+~~\\~~\\
+% ---------------------------------------------------
+% -----------------------Record----------------------
+% ---------------------------------------------------
+\subsection {record and dest term}
+{\sf record } term forms a record for a codata type. {\sf dest} destructs a record with a particular destuctor and obtain the term corresponding to that destructor from the record.
+~~\\~~\\
+Let us defined a codata type C, $A_1$, $\ldots$, $A_k$ is the union of type variables used in its different destructors. $D_1$, $\ldots$, $D_m$ are the different destructors of the codata type C. For $D_1$, $F_{11}$, $\ldots$, $F_{1a}$ repesent the input type of the destructor. 
+\begin{align*} 
+\forall A_1,~ \ldots,~A_k.~codata~ A ~\to~ C =
+ & ~~ D_1 : F_{11},~ \ldots, ~ F_{1a},~A \to O_1 \\
+ & ~~~~ \vdots \qquad\qquad \vdots \qquad\qquad\qquad \vdots \\ 
+ & ~~ D_m : F_{m1} ,~ \ldots, ~ F_{mn},~A \to O_n
+\end{align*}
+Renaming the different constructs in the codata C with fresh variables $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ gives the following constructs. 
+\begin{align*}
+ & ~~ C_{N} ~~~ = (\Lambda A_1,\ldots,A_k.~ C)~A_1^{\prime},\ldots,A_k^{\prime}\\ 
+ & ~~ F_{xy,N} = (\Lambda A_1,\ldots,A_k.~F_{xy})~A_1^{\prime},\ldots,A_k^{\prime} 
+ ~~~  \{1 \leq x \leq m,1 \leq y \leq p ~|~ p \in \{a,b,\ldots,n\} \} \\
+ & ~~ O_{i,N} ~= (\Lambda A_1,\ldots,A_k.~ O_i)~A_1^{\prime},\ldots,A_k^{\prime} 
+  ~~~~~ \{ 1 \leq i \leq m \} \\
+ \end{align*}
+The type of a {\sf record} term for a codata type is that codata type. The types of the different detsructor arguments and the term corresponding to a destructor branch is obtained by looking up the function type corresponding to that destructor from the symbol table. The input type gives the type of the constructor arguments and the output type gives the type of the term corresponding to the destructor branch.
+~~\\~~\\ 
+The type of a {\sf destructor } term is the type of term corresponding to that destructor branch in the given record. This is obtained from the function type (output type of the function) of the destructor which can be looked up from the symbol table. The types of the destructor arguments are obtained from the corresponding input type of the afore mentioned function.
+~~\\~~\\
+\newpage
+\begin{mdframed} [style=MyFrameSp,userdefinedwidth=19.5cm,align=right,
+                  frametitle=Typing Rule for record,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\
+\infer [\rm dest]
+  { 
+   \begin {array}[c]{l}
+    {
+      \Gamma \vdash \dest (D_i,[t_{i1},\ldots,t_{ij}])
+             ~~\Bigg(
+             \rec 
+              {
+                \begin{array}[c]{lcl}
+                  \vdots & \vdots & \vdots \\
+                  {D_i~x_{i1},\ldots,x_{ij}} & \to & t_i \\
+                  \vdots & \vdots & \vdots \\
+                \end{array}          
+              }\Bigg):T   
+    }\\
+    {
+      \hskip 20em \Bigg\langle
+          \exists \,
+          \begin
+            {array}[c]{l}
+            T_0,T_1,\ldots,T_j, \\
+            A_1^{\prime},\ldots,A_n^{\prime}~~~~ .
+          \end{array}
+          \begin
+            {array}[c]{l} 
+            T = T_0,\\ 
+            T_0 = O_{i,N},
+            T_1 = I_1,\ldots,T_j = I_j\\
+            I_1 = F_{i1,N},\ldots,I_j = F_{ij,N},\\
+            E_0,E_1,\ldots,E_j
+          \end{array} 
+      \Bigg\rangle 
+    }
+    \end{array}  
+  } 
+  { \Gamma \vdash t_{i1}:T_1 ~~~\langle E_{i1} \rangle && \ldots && ~~~
+    \Gamma \vdash t_{ij}:T_j ~~~\langle E_{ij} \rangle && ~~
+    \Gamma, x_{i1}:I_1,\ldots,x_{ij}:I_j \vdash t_i:T_0 ~~~ \langle E_0 \rangle
+  }~~\\~~\\~~\\      
+
+\infer [\rm rec] {
+         \Gamma \vdash 
+         \rec 
+          {
+            \begin{array}[c]{lcl}
+              {D_1~x_{11},\ldots,x_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {D_m~x_{m1},\ldots,x_{mn}} & \to & t_n 
+            \end{array}          
+          }:T  ~~~
+            \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,T_1,\ldots,T_m, \\
+                  T_{11},\ldots,T_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  T_{m1},\ldots,T_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T = C_{N}\\
+                  T_1 = O_{1,N},\ldots,T_m = O_{m,N}\\
+                  T_{11}= F_{11,N},\ldots,T_{1a}= F_{1a,N}\\
+                  \qquad\qquad \vdots \\
+                  T_{m1}= F_{m1,N},\ldots,T_{mn}= F_{mn,N}\\
+                  E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle  
        }
-\\ ~ \\
-\hline
-\end{tabular}
-\caption{Typing rules for Case}
-\label{type-inference for Case}
-\end{center}
-\end{table}
+       {
+         t:T_0 ~ \langle E_0 \rangle &&
+         x_{11}:T_{11},\ldots,x_{1a}:T_{1a} \vdash t_1 : T_1
+         ~\langle E_1 \rangle &
+         \ldots &
+         x_{m1}:T_{m1},\ldots,x_{mn}:T_{mn} \vdash t_m : T_m
+         ~ \langle E_m \rangle
+       }
+\end{mdframed}
 ~~\\~~\\
 
+
+% ---------------------------------------------------
+% ---------------------- Prod -----------------------
+% ---------------------------------------------------
+\subsection {prod term}
+{\sf prod} term is used to reprsent tuples in MPL.The output type of a tuple is the product of the types of the individual elements.
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=14cm,align=center,
+                  frametitle=Typing Rule for prod,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm prod]
+  {
+    \Gvdash (x_1,\ldots,x_n) : T 
+    ~~~ \bigg\langle \exists ~ T_1,\ldots,T_n~.~  
+                \begin
+                  {array}[c]{l} 
+                       T = (T_1,\ldots,T_n) \\ 
+                       ,E_1,\ldots,E_n
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gvdash x_1 : T_1 ~~ \langle E_1 \rangle &&
+   \ldots && \Gvdash x_n : T_n ~~ \langle E_n \rangle 
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
+
+% ---------------------------------------------------
+% ----------------------call-------------------------
+% ---------------------------------------------------
+\subsection {function call}
+Function call is used to call an already defined function in the program. The type of the called function is looked up from the symbol table. In the below representation of a function type, function f's type is comprised of m input types $I_1$, $\ldots$ $I_m$ and an output type O. 
+\begin{align*} 
+ & f:\forall A_1,~ \ldots,~A_k.~I_1,\ldots,I_m \to O 
+\end{align*}
+As in the previous term {\bf\sf case}, the output and input types are $\alpha$ renamed.
+\begin{align*}
+ & ~~ I_{i,N} = (\Lambda A_1,\ldots,A_k.~I_i)~A_1^{\prime},\ldots,A_k^{\prime} \\
+ & ~~ O_{N} = (\Lambda A_1,\ldots,A_k.~ O)~A_1^{\prime},\ldots,A_k^{\prime} 
+ \end{align*}
+The type of a function call is the type of the output type of the function being called.
+To type infer the function arguments, the arguments are type inferred in the original context $\Gamma$ and these types are equated with their corresponding input types of the function obatined from the symbol table.
+~~\\~~\\
+\begin{mdframed} [style=MyFrameSp,userdefinedwidth=14cm,align=center,
+                  frametitle=Typing Rule for function call,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+{\small
+\infer [\rm call]
+  {
+    \Gamma \vdash {\sf f ~(x_1,\ldots,x_m)}
+   : T  ~~
+       \Bigg\langle 
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  A_1^{\prime},\ldots,A_k^{\prime},\\
+                  T_1,\ldots,T_m ~~.~
+                \end{array}
+                \begin {array}[c]{l} 
+                   T = O_{N},\\
+                   T_1 = I_{1,N},\ldots,T_m = I_{m,N},\\
+                   E_1,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle 
+  }
+  { \Gvdash  x_1 : X_1 ~~\langle E_1 \rangle && \ldots &&
+    \Gvdash  x_n : X_n ~~\langle E_n \rangle 
+  }
+}  
+\end{mdframed}
+
+~~\\~~\\
+
+% ---------------------------------------------------
+% ---------------------- If stmt---------------------
+% ---------------------------------------------------
+\subsection {if term}
+{\sf if} is a term with three arguments, a boolean expression and two statements. Depending on the boolean value, first or the second statement is executed. The type of the {\sf if} statement is the type of the type of these statements. A correctly typed program will have these two statements of the same type.
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=14cm,align=center,
+                  frametitle=Typing Rule for if,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm if]
+  {
+    \Gvdash
+    {\sf if ~ t1 ~then~ t2 ~else ~t3} : T 
+    ~~~ \bigg\langle \exists ~ T_1,T_2,T_3~.~  
+                \begin
+                  {array}[c]{l} 
+                       T_1 = Bool, \\
+                       T_2 = T,T_3 = T, \\ 
+                       E_1,E_2,E_3
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gvdash t_1 : T_1 ~~ \langle E_1 \rangle &&
+   \Gvdash t_2 : T_2 ~~ \langle E_2 \rangle &&
+   \Gvdash t_3 : T_3 ~~ \langle E_3 \rangle
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
+
+% ---------------------------------------------------
+% ---------------------- Let -----------------------
+% ---------------------------------------------------
+\subsection {Let term}
+{\sf let} statment allows local defintions to be used in a term. {\sf let} also allows the programmer define local functions. The local functions are type inferred and added to the symbol table. The scope of these functions is just the {\sf let} term. The representation below assumes that these local functions have already been taken care of and all that remains in the where part are local variable/pattern declarations. The type the let statement is the type of the term {\bf t}.
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
+                  frametitle=Typing Rule for let,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm let]
+  {
+    \Gvdash \letS 
+          {t} 
+          {
+            \begin{array}[c]{lcl}
+              x_1 & = & t_1 \\
+              \vdots & \vdots & \vdots \\
+              x_m & = & t_m 
+            \end{array}          
+          }:T 
+       ~~~\Bigg\langle 
+               \exists  
+                      \begin
+                        {array}[c]{l}
+                        T_0,\ldots,T_m,\\
+                        I_1,\ldots,I_m ~~.~
+                      \end{array}
+                  \begin
+                    {array}[c]{l} 
+                         T = T_0, \\
+                         I_1 = T_1,\ldots,I_m = T_m,\\ 
+                         E_0,E_1,\ldots,E_m
+                  \end {array}       
+          \Bigg\rangle 
+  }
+  { 
+   \Gamma \vdash t_1 : T_1 ~~ \langle E_1 \rangle &&
+   \ldots &&
+   \Gamma \vdash t_m : T_m ~~ \langle E_m \rangle &&&
+   \Gamma,x_1:I_1,\ldots x_m:I_m \vdash t:T_0 ~~ \langle E_0 \rangle
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
+\section {Generating Type Equations for Function Defintions}
+
+% ---------------------------------------------------
+% ---------------------- Function W/O Types----------
+% ---------------------------------------------------
+\subsection {Function definitions without an annotated type}
+These are the function definitions for which the programmer has not annotated the expected type of the function. Once the function defintion is type inferred, the function name is inserted in the symbol table with this type. 
+~~\\~~\\
+The patterns on the left hand side of the function defintion can either be a variable or a constructor patterns. For the ease of describing the rule, lets divide the pattern into two cases.
+\begin {itemize}
+  \item {\bf Function with variables as the input argument} ({\sf fun defn$_1$)} -
+To type infer function with variable arguments, the variables of the arguments are added to the context and in this enhanced context the term on the right hand side is type inferred.The input type of the function is the type of the input arguments and the output type is the type of the term.   
+  \item {\bf Function with constructor patterns as the input argument} ({\sf fun defn$_2$)} - Although a function can have constructor patterns of more than one data type as input, we will limit ourselves to just one for the sake of succintness. The given scheme can easily be extrapolated for the multiple case. The input type of the function is the data type of the constructors on the left hand side and the output type of the function is the type of the terms on the right hand side of the constructor. 
+\end {itemize} 
+
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
+                  frametitle=Typing rule for function defns with variable patterns,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm fdefn_1]
+  {
+    \Gvdash
+    \fun
+      {
+        \begin{array}[c]{lcl}
+          x_1,\ldots,x_m & \to & t
+        \end{array}          
+      }:T 
+    ~~~ \bigg\langle \exists ~ I_1,\ldots,I_m~.~  
+                \begin
+                  {array}[c]{l} 
+                       T = (I_1,\ldots,I_m)~ \to ~ O,\\
+                        E 
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gamma,x_1:I_1,~\ldots,~x_m:I_m \vdash t : O ~~ \langle E \rangle
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
+Suppose the patterns on the left hand side in the function defintion are constructors of a data type D. $A_1$, $\ldots$, $A_k$ is the union of type variables used in the different constructors of the data type. $C_1$ $\ldots$ $C_m$ are the different constructors of the data type D.
+~~\\~~\\
+\begin{align*} 
+\forall A_1,~ \ldots,~A_k.~data~ D ~\to~ A =
+ & ~~ C_1 : F_{11},~ \ldots, ~ F_{1a} \to A \\
+ & ~~~~ \vdots \qquad\qquad \vdots \qquad\qquad \vdots \\ 
+ & ~~ C_m : F_{m1} ,~ \ldots, ~ F_{mn} \to A
+\end{align*}
+Renaming the different constructs in the data D with fresh variables $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ gives the following constructs. 
+\begin{align*}
+ & ~~ D_{N} ~~~ = (\Lambda A_1,\ldots,A_k.~ D)~A_1^{\prime},\ldots,A_k^{\prime}\\ 
+ & ~~ F_{xy,N} = (\Lambda A_1,\ldots,A_k.~F_{xy})~A_1^{\prime},\ldots,A_k^{\prime} 
+ ~~~  \{1 \leq x \leq m,~1 \leq y \leq p ~|~ p \in \{a,b,\ldots,n\} \} \\
+ \end{align*}
+\begin{mdframed} [style=MyFrame,userdefinedwidth=20.8cm,align=center,
+                  frametitle=Typing rule for function defns with constructor patterns,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm fdefn_2]
+  {
+    \Gvdash
+    \fun
+      {
+        \begin{array}[c]{lcl}
+          C_1 ~ x_{11},\ldots,x_{1a} & \to & t_1 \\ 
+          \vdots & \vdots & \vdots \\
+          C_m ~ x_{m1},\ldots,x_{mn} & \to & t_m
+        \end{array}          
+      }:T 
+    ~~~ \bigg\langle \exists 
+               \begin {array} [c] {l}
+                  ~ I_{11},\ldots,I_{1a} \\
+                  \qquad \vdots \qquad \qquad . \\ 
+                  ~ I_{m1},\ldots,I_{mn} \\ 
+                  ~ T_1,\ldots,T_m,O
+               \end {array}  
+                \begin
+                  {array}[c]{l} 
+                       T = D_N ~ \to ~ O,\\
+                       T_1 = O,\ldots,T_m = O,\\ 
+                       I_{11} = F_{11,N},\ldots,I_{1a} = F_{1a,N}, \\
+                       \qquad\qquad \vdots \\ 
+                       I_{m1} = F_{m1,N},\ldots,I_{mn} = F_{mn,N}, \\
+                       E_1,\ldots,E_m
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gamma,x_{11}:I_{11},~\ldots,~x_{1a}:I_{1a} \vdash t_1 : T_1 ~ \langle E_1 \rangle & \ldots &
+   \Gamma,x_{m1}:I_{11},~\ldots,~x_{mn}:I_{mn} \vdash t_m : T_m ~ \langle E_m \rangle
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
+\subsection {Function defintions with an annotated type}
+These are the function definitions for which the programmer has annotated the expected type of the function. Once the function is type inferred, an attempt is made to unify the annotated function type with the inferred one. If the two types can be successfully unified, then the inferred type is line with the expectation of the programmer and the annotated type is inserted in the symbol defintion with the name of the function.
+~~\\~~\\ 
+The type equations generated for the annotated functions just differ slightly from the unannotated ones. In the interest of succinctness, we will describe the equation generation only for the variable patterns case. Equation generation for the constructor pattern case can be easily deduced from this.
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
+                  frametitle=Typing rule for function defns with variable patterns,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm fdefn_1]
+  {
+    \Gvdash
+    \fun
+      {
+        \begin{array}[c]{lcl}
+          x_1,\ldots,x_m & \to & t
+        \end{array}          
+      }:T 
+    ~~~ \bigg\langle \exists ~ I_1,\ldots,I_m~.~  
+                \begin
+                  {array}[c]{l} 
+                       T = (I_1,\ldots,I_m)~ \to ~ O,\\
+                        E 
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gamma,x_1:I_1,~\ldots,~x_m:I_m \vdash t : O ~~ \langle E \rangle
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
 \end {document}
 
