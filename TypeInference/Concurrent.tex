@@ -122,6 +122,7 @@ In order to type infer {\sf get}, the variable x should be added to the sequenti
 ~~\\~~\\
 {\sf put} command, $\putC$ puts a seqential term t on the channel $\alpha$. Like with {\sf get}, polarity of $\alpha $ decides whether it ends up with a {\bf Get} or a {\bf Put} protocol. The term t is type inferred in the sequential context $\Phi$ to get the first argument of the {\bf Get/Put} protocol. The second argument of the {\bf Get/Put} protocol is obtained by type inferring the channel $\alpha$ from the remaining process commands in the original sequential context, $\Phi$.  
 
+\newpage
 \begin{mdframed} [style=MyFrame,userdefinedwidth=14cm,align=center,
                   frametitle=Typing Rules for Get-Put,frametitlerule=true,
                   frametitlerulewidth = 1pt
@@ -171,7 +172,6 @@ In order to type infer {\sf get}, the variable x should be added to the sequenti
 % ---------------------------------------------------
 % ---------------------- Close/Halt------------------
 % ---------------------------------------------------
-\newpage
 \subsection {Close and Halt Command}
 The protocol as a result of {\sf close/halt} is $\bot$. When a channel is the last remaining channel in the input or the output context, then only it can be {\sf halted}.
 ~~\\
@@ -223,7 +223,6 @@ The protocol as a result of {\sf close/halt} is $\bot$. When a channel is the la
 % ----------------------Split/Fork-------------------
 % ---------------------------------------------------
 
-\newpage
 \subsection {Split and Fork Command}
 ~~\\
 {\sf split } and {\sf fork} commands come in a pair.\splitC, splits a channel $\alpha$ into two channels $\alpha_1$ and $\alpha_2$. Depending on the polarity of $\alpha$, the channels $\alpha_1$ and $\alpha_2$ are added to the respective channel contexts and are type inferred from the remainder of the process code. The protocol of the channel $\alpha$ is $\otimes$ or $\oplus$ of $\alpha_1$ and $\alpha_2$, depending on the polarity of $\alpha$.
@@ -527,7 +526,7 @@ To type infer the run command, the sequential terms are type inferred in the seq
 \newpage
 \subsection {hcase-hput Command}
 ~~\\
-$\hput$ command puts a handle H on a channel $\alpha$. The protocol of the handle H becomes the protocol of the channel $\alpha$. The protocol of the channel $\alpha$ inferred from the remaining process commands should be equated to the input type of the handle H obtained from the symbol table. 
+$\hput$ command puts a handle/cohandle H on a channel $\alpha$. The protocol of the handle H becomes the protocol of the channel $\alpha$. The protocol of the channel $\alpha$ inferred from the remaining process commands should be equated to the input type of the handle H obtained from the symbol table. 
 ~~\\~~\\
 {\sf hcase} command branches on the handles of a protocol that a channel $\alpha$ has received. Corresponding to every handle certain process commands are run. The protocol of channel $\alpha$ is the protocol of which the cased handles are a part of. The process commands corresponding to every handle will produce a protocol for channel $\alpha$. This protocol should be equated with the input type of that handle. The input type of a handle can be obtained from the symbol table. 
 ~~\\~~\\
@@ -594,6 +593,47 @@ We $\alpha$ rename the input type of the handles, $T_1$, $\ldots$, $T_n$ and pro
 
 \end{mdframed}
 
+% ---------------------------------------------------
+% ---------------------- Function W/O Types----------
+% ---------------------------------------------------
+\subsection {Function definitions without an annotated type}
+These are the function definitions for which the programmer has not annotated the expected type of the function. Once the function defintion is type inferred, the function name is inserted in the symbol table with this type. 
+~~\\~~\\
+The patterns on the left hand side of the function defintion can either be variables or constructor patterns. For the ease of describing the rule, the patterns have been divided into two cases.
+\begin {itemize}
+  \item {\bf Function with variables as input argument} ({\sf fdefn$_1$)} -
+To type infer a function with variable arguments, the variables of the arguments are added to the context and in this enhanced context the term on the right hand side of the function defintion is type inferred.The input type of the function is the type of the input arguments (variables in this case) and the output type is the type of the term.   
 
+  \item {\bf Function with constructor patterns as input arguments} ({\sf fdefn$_2$)} - Although a function can have constructor patterns of more than one data type as input, we will limit ourselves to just one for the sake of succintness. The given scheme can easily be extrapolated for the case when the function take n constructor patterns as input. The input type of the function is the data type of the constructors of constructor pattern and the output type of the function is the type of the terms on the right hand side of the constructor. A well typed function defintion will have the terms corresponding to all the branches of the same type. 
+\end {itemize} 
+
+~~\\~~\\
+\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
+                  frametitle=Typing rule for function defns with variable patterns,frametitlerule=true,
+                  frametitlerulewidth = 1pt
+                 ]
+~~\\~~\\
+\infer [\rm fdefn_1]
+  {
+    \Gvdash
+    \fun
+      {
+        \begin{array}[c]{lcl}
+          x_1,\ldots,x_m & \to & t
+        \end{array}          
+      }:T 
+    ~~~ \bigg\langle \exists ~ I_1,\ldots,I_m~.~  
+                \begin
+                  {array}[c]{l} 
+                       T = (I_1,\ldots,I_m)~ \to ~ O,\\
+                        E 
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gamma,x_1:I_1,~\ldots,~x_m:I_m \vdash t : O ~~ \langle E \rangle
+  }~~\\~~\\
+\end{mdframed}
+~~\\~~\\
 \end {document}
 
