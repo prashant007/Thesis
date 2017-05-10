@@ -1,0 +1,717 @@
+\documentclass[11pt]{article}
+
+\title{Compilation of Pattern Matching}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
+\begin{document}
+
+\maketitle
+\section {Compilation of MPL Programs to Core MPL}
+
+Once an MPL program is processed by the frontend, i.e the lexer and the parser, an AST is generated which is a faithful representation of the original program. This AST is used to type infer the MPL programs.
+~~\\~~\\ 
+The next step in compilation of MPL programs is to compile {\em pattern-matching} to the {\em case} statements and {\em lambda lifting} the MPL programs which involves making all the local functions global. {\em Core MPL(CMPL)} is an intermediate language of MPL which gets rid of the syntactic sugar from MPL programs and represents every program in terms of a reduced set of language constructs.
+
+\section {Example of Pattern-Matching Compilation} \label {ExPattMatch}
+{\em Pattern-matching} is a syntactic feature of MPL which allows the programmer to write readable programs such as the following :- 
+\begin{alltt}
+fun myZip = 
+     [],   []   -> [] 
+     [],   ys   -> []
+     xs,   []   -> []
+     x:xs, y:ys -> x:append (xs,ys) 
+\end{alltt}
+In the above example, the constructors on the left hand side of the fucntion 
+defintion ({\em Nil and Cons}) are called {\em patterns}. In the CMPL stage, the patterns are compiled into {\em case} statements. For example, CMPL representation of the {\em myZip} function will look like the following.
+\begin{alltt}
+fun myZip =
+    xl,yl -> 
+        case xl of
+          [] -> 
+            case yl of  
+               []   -> []
+               y:ys -> [] 
+          (x:xs) -> 
+            case yl of 
+              []   -> []
+              y:ys -> <x,y>:myZip (xs,ys)
+
+\end{alltt}
+
+\section {Steps of Pattern-Matching Compilation}
+The compilation from {\em pattern-matching} to the {\em case} statement  can be done in following steps :-
+\begin {enumerate}
+   \item Take a function that uses {\em pattern-matching} and represent it with  the {\em Match} construct. The Match construct is described in section \ref {MatchCon}.
+   \item Reduce the {\em Match} construct repeatedly until the base case is reached and reduction is not possible anymore. The reduction of the {\em Match} construct has been described in the section \ref {RedMatch}. 
+   \item Once the base case is reached, the {\em pattern-matching} is successfully compiled to case statement. Handling the base case has been described in 
+   section \ref {BaseCase}
+\end {enumerate}
+
+\subsection {Match Construct} \label{MatchCon} 
+{\em Match} construct can be described as the following Haskell data type :- 
+
+\begin{alltt}
+data Match    = Match [String] [Equation] Term 
+
+type Equation = ([Pattern],Term)
+\end{alltt}
+The first argument of the {\em Match} constructor is a list of variable names. The number of elements in this list is the same as the number of patterns in any given line of {\em pattern-matching}. It should be noted that every well formed function definition that uses {\em pattern-matching} should have same number of patterns in every {\em pattern-matching} line. 
+The second argument of {\em Match} is an equation list. Every equation in the list captures a line of {\em pattern-matching}. 
+The last argument is a term acts like a default term while dealing with missing constructors of a data type in {\em pattern-matching}.
+~~\\~~\\ 
+An example of a function represented with a {\em Match} construct is as below. 
+\begin{alltt}
+fun myFun =
+    a,[],     ys     -> P a ys  
+    a,(x:xs), []     -> Q a xs 
+    a,(x:xs), (y:ys) -> R x xs y ys 
+\end{alltt}
+An AST representation of the above function can be following :- 
+\begin{alltt}
+    Fun ``myFun''
+            [
+             ([
+               VarPatt ``a'',
+               ConsPatt (``Nil'',[]),
+               VarPatt ``ys''
+              ],
+                    TCons (``P'',[TVar ``a'',TVar ``ys''])),
+             ([
+               VarPatt ``a'',
+               ConsPatt (``Cons'',[VarPatt ``x'',VarPatt ``xs'']),
+               ConsPatt (``Nil'',[])
+               ],
+                    TCons (``Q'',[TVar ``a'',TVar ``xs''])),
+             ([
+               VarPatt ``a'',
+               ConsPatt (``Cons'',[VarPatt ``x'',VarPatt ``xs'']),
+               ConsPatt (``Cons'',[VarPatt ``y'',VarPatt ``ys''])
+              ],
+                    TCons (``R'',[TVar ``x'',TVar ``xs'',TVar ``y'',TVar ``ys''])
+             )
+            ]           
+\end{alltt}
+{\em VarPatt} is used to represent variable patterns. It takes an argument of type String, which is the variable that it is representing.
+{\em ConsPatt} is used to represent constructor patterns. This takes as argument a pair. First element of the pair is the constructor name and second element is the list of arguments that this constructor takes as input. For example -
+\begin{alltt}
+ConsPatt (``Cons'',[VarPatt ``x'',VarPatt ``xs''])
+\end{alltt}
+Three constructors P, Q and R have been used as terms in the definition of {\em myFun}. 
+~~\\~~\\ 
+Like {\em ConsPatt} represents constructor patterns, {\em TCons}
+represents constructor terms. {\em TCons} takes a pair as argument. The first element of the pair is the name of the constructor and second element is the list of terms that this constructor takes as input.
+~~\\~~\\
+For example - 
+\begin{alltt}
+TCons (``S'',[TVar ``x'',TVar ``xs'',TVar ``y'',TVar ``ys''])
+\end{alltt}
+This represents a term constructor {\em S} taking four terms as inputs.
+~~\\~~\\
+Given an AST for the function, the corresponding {\em Match} representation of the function can be easily generated. The {\em Match} representation for the body of {\em myFun} function is given below. Note that instead of representing {\em Match} with the heavy data type representation like the AST, a more readable and succinct representation has been used.  
+
+\begin{alltt}
+fnMatch = Match [u\(\sb{1}\),u\(\sb{2}\),u\(\sb{3}\)]
+            [
+              ([a,Nil,ys],               P a ys),
+              ([a,Cons(x,xs),Nil],       Q a xs),
+              ([a,Cons(x,xs),Cons(y,ys)],R x xs y ys)
+            ]
+            t\(\sp{\prime}\) 
+\end{alltt}
+~~\\
+In the {\em Match} construct above $t^\prime$ is the default term to be used with constructors of a data type that are missing from the {\em pattern-matching}. It can be an error message or an exception. The final function definition for {\em myFun} with compiled pattern matching can be obtained as follows.
+\begin{alltt}
+fun myFun =
+    u1,u2,u3 -> reduced fmMatch
+\end{alltt}
+The reduction of the {\em Match} construct has been discussed in the next section (\ref{RedMatch}).
+\subsection {Reducing the Match Construct} \label{RedMatch}
+Depending on whether the first pattern of the {\em pattern matching} starts with a variable, a constructor or a mixture of variables and constructors, there are three reduction rules.
+
+\begin {enumerate}
+   \item Variable Rule
+   \item Constructor Rule 
+   \item Mixture Rule 
+\end {enumerate}
+\subsubsection {Variable Rule} 
+This reduction rule is used when every equation in {\em Match} starts with a {\em variable  pattern}. The reduction rule has been captured in Table \ref {varRule} below. $t_i[M/x]$ means that in term $t_i$, M has been substituted for x.        
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{2in}
+ \begin{alltt}
+
+Match (u:us) 
+         [
+          (v\(\sb{1}\):vs\(\sb{1}\),t\(\sb{1}\)),
+             .
+             .
+             .
+          (v\(\sb{n}\):vs\(\sb{n}\),t\(\sb{n}\))
+         ]
+         t\(\sp{\prime}\)  
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{2in}
+\begin{alltt}
+
+Match us 
+     [
+      (vs\(\sb{1}\),t\(\sb{1}\)[u/v\(\sb{1}\)]),
+         .
+         .
+         .
+      (vs\(\sb{n}\),t\(\sb{n}\)[u/v\(\sb{n}\)])
+     ] 
+     t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Reduction Rule for Variable Case}
+\label{varRule}
+\end{center}
+\end{table}
+~~\\
+An example of using the {\em Variable Rule} for reducing a {\em Match} construct has been shown below in Table \ref {exvarRule}.
+The {\em Match} construct in the before column in the table below is that of function $myFun$ from section \ref {ExPattMatch}.   
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{3in}
+ \begin{alltt}
+
+Match [u\(\sb{1}\),u\(\sb{2}\),u\(\sb{3}\)]
+  [
+   ([a,Nil,ys],               P a ys),
+   ([a,Cons(x,xs),Nil],       Q a xs),
+   ([a,Cons(x,xs),Cons(y,ys)],R x xs y ys)
+  ]
+  t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.2in}
+ \begin{alltt}
+
+Match [u\(\sb{2}\),u\(\sb{3}\)]
+  [
+   ([Nil,ys],               P u\(\sb{1}\) ys),
+   ([Cons(x,xs),Nil],       Q u\(\sb{1}\) xs),
+   ([Cons(x,xs),Cons(y,ys)],R x xs y ys)
+  ]
+  t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example for Variable Case}
+\label{exvarRule}
+\end{center}
+\end{table}
+
+
+\subsubsection {Constructor Rule}
+This reduction rule is used when every equation in {\em Match} starts with a {\em constructor pattern}. The reduction rule has been captured in Table \ref {consRule} below. 
+~~\\~~\\
+There can be mutiple equations in the {\em Match}
+construct starting with the same constructor name. The equations with the same constructor name are grouped together by interchanging the order of equations (to which these {\em constructor patterns} belong) in the {\em Match} construct.
+~~\\~~\\
+It should be noted that order of two consecutive equations with constructor patterns in the beginning can be interchanged only when the constructor names in these patterns are different.
+~~\\ ~~\\  
+The {\em Match} construct with the grouped equations, will have the below structure where every equation $\mathbf {eq_i}$ is the list of equations starting with the same constructor $\mathbf {C_i}$. $\mathbf {++}$ is the {\em append} function.
+\begin{alltt}
+
+            Match (u:us) 
+                     [
+                       eq\(\sb{1}\) ++ ... ++ eq\(\sb{k}\) 
+                     ]
+                     t\(\sp{\prime}\)  
+
+
+\end{alltt}
+Consider that constructor $\mathbf {C_i}$ for equation $\mathbf {eq_i}$ takes $\mathbf {r}$ arguments, $\mathbf {C_i~b_1~\ldots~b_r}$. For succintness, instead of using $\mathbf {C_i~b_1~\ldots~b_r}$, the representation $\mathbf{C_i~bs}$ is used where $\mathbf{bs}$ represents the list of arguments that the constructor $\mathbf{C_i}$ takes.
+i.e $\mathbf {~~bs = [b_1,\ldots,b_r]} .$
+~~\\~~\\
+Consider that $\mathbf {eq_i}$ has {\em j} equations each starting with a constructor $\mathbf {C_i}$. $\mathbf {eq_i}$ can then be represented as 
+below.$\mathbf {rs}$ represents the remaining patterns of the equation,i.e the ones except the first constructor pattern.   
+\begin{alltt}
+
+           eq\(\sb{i}\) = [
+                    ( ((C\(\sb{i}\) bs\(\sb{i1}\)):rs\(\sb{i1}\)),t\(\sb{i1}\)),
+                          .
+                          .
+                          .
+                    ( ((C\(\sb{i}\) bs\(\sb{ij}\)):rs\(\sb{ij}\)),t\(\sb{ij}\))
+                  ]  
+
+\end{alltt}
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{3in}
+\begin{alltt}
+
+Match (u:us) 
+         [
+           eq\(\sb{1}\) ++ ... ++ eq\(\sb{k}\) 
+         ]
+         t\(\sp{\prime}\)  
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3in}
+\begin{alltt}
+
+    case u of 
+       C\(\sb{1}\) ns\(\sb{1}\) -> Match (ns\(\sb{1}\) ++ us) eq\(\sb{1}\sp{\prime}\) t\(\sp{\prime}\) 
+         .              .
+         .              .
+         .              .
+       C\(\sb{k}\) ns\(\sb{k}\) -> Match (ns\(\sb{k}\) ++ us) eq\(\sb{k}\sp{\prime}\) t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Reduction Rule for Constructor Case}
+\label{consRule}
+\end{center}
+\end{table}
+~~\\
+In the {\em After} column of Table \ref{consRule}, $\mathbf{ns_i}$ is the list of fresh variables of length equal to the number of arguments that the constructor $\mathbf{C_i}$ takes. Every $\mathbf{eq_i^\prime}$ has the following form.
+
+\begin{alltt}
+
+           eq\(\sb{i}\sp{\prime}\) = [
+                    (bs\(\sb{i1}\) ++ rs\(\sb{i1}\), t\(\sb{i1}\)),
+                          .
+                          .
+                          .
+                    (bs\(\sb{ij}\) ++ rs\(\sb{ij}\), t\(\sb{ij}\))
+                  ]  
+
+
+\end{alltt}
+An example of using the {\em Constructor Rule} for reducing a {\em Match} construct has been shown below in Table \ref {exConsRule}.
+The {\em Match} construct in the before column in the table below is the {\em Match} construct from the {\em After} column of Table \ref {exvarRule} with its equations partitioned according to the constructor names in the first pattern.
+~~\\ 
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{3.1in}
+ \begin{alltt}
+
+
+Match [u\(\sb{2}\),u\(\sb{3}\)]
+  (
+    [([Nil,ys],P u\(\sb{1}\) ys)] ++
+    [([Cons(x,xs),Nil],       Q u\(\sb{1}\) xs),
+     ([Cons(x,xs),Cons(y,ys)],R x xs y ys)]
+  )  
+  t\(\sp{\prime}\) 
+
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3in}
+ \begin{alltt}
+
+case u\(\sb{2}\) of 
+  Nil -> 
+    Match [u\(\sb{3}\)] [([ys], P u\(\sb{1}\) ys)] t\(\sp{\prime}\) 
+
+  Cons u\(\sb{4}\) u\(\sb{5}\) -> 
+    Match [u\(\sb{4}\),u\(\sb{5}\),u\(\sb{3}\)]
+      [
+        ([x,xs,Nil],       Q u\(\sb{1}\) xs),
+        ([x,xs,Cons(y,ys)],R x xs y ys)
+      ]
+      t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example for Constructor Case}
+\label{exConsRule}
+\end{center}
+\end{table}
+
+\subsubsection {Mixture Rule}
+This reduction rule is used when some equations in the {\em Match} construct starts with a {\em constructor pattern} and some with a {\em variable pattern}. The reduction rule has been captured in Table \ref {mixRule} below.
+~~\\
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{3in}
+\begin{alltt}
+
+Match us  
+         [
+           eq\(\sb{1}\) ++ ... ++ eq\(\sb{k}\) 
+         ]
+         t\(\sp{\prime}\)  
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3in}
+\begin{alltt}
+
+Match us eq1 
+  (
+    Match us eq2
+      (
+       ...
+         (Match us eq_k t')
+      )
+  )
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Reduction Rule for Mixture Case}
+\label{mixRule}
+\end{center}
+\end{table}
+~~\\~~\\ 
+In the {\em Before} column of Table \ref {mixRule}, the equations have been divided into {\em k} parts, $eq_1,\ldots,eq_k$. Every partition contains all the consecutive equations that begin either with a {\em variable pattern} or {\em constructor pattern}. For example - Consider the below {\em Match} construct.   
+~~\\~~\\ 
+\begin{alltt}
+        Match [u\(\sb{1}\),u\(\sb{2}\)]
+            [
+             ([Nil,ys],       A ys),
+             ([xs,Nil],       B xs),
+             ([Cons(x,xs),ys],C x xs ys)
+            ]
+          t\(\sp{\prime}\) 
+\end{alltt} 
+~~\\ 
+{\em Match} construct with partitioned equations is as below.
+\begin{alltt}
+        Match [u\(\sb{1}\),u\(\sb{2}\)]
+          (
+            [([Nil,ys],       A ys)] ++
+            [([xs,Nil],       B xs)] ++
+            [([Cons(x,xs),ys],C x xs ys)]
+          )  
+          t\(\sp{\prime}\) 
+\end{alltt} 
+
+Reduction of this {\em Match} construct using the mixture rule has been shown in the Table \ref {exMixed} below.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{3in}
+ \begin{alltt}
+
+
+    Match [u\(\sb{1}\),u\(\sb{2}\)]
+      (
+        [([Nil,ys],       A ys)] ++
+        [([xs,Nil],       B xs)] ++
+        [([Cons(x,xs),ys],C x xs ys)]
+      )  
+      t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+    Match [u\(\sb{1}\),u\(\sb{2}\)]
+      [([Nil,ys],A ys)] 
+      (
+        Match [u\(\sb{1}\),u\(\sb{2}\)]
+          [([xs,Nil],B xs)] 
+          (
+            Match [u\(\sb{1}\),u\(\sb{2}\)]
+              [([Cons(x,xs),ys],C x xs ys)]
+              t\(\sp{\prime}\) 
+          )
+      )  
+      
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example for Mixture Case}
+\label{exMixed}
+\end{center}
+\end{table}
+
+\subsection {Handling the Base Case} \label{BaseCase}
+The base case is reached when the first argument of the {\em Match} construct which is a variable list, is empty. The base case can be divided into two cases.
+\begin{enumerate}
+    \item When the equation list associated with the {\em Match} construct is {\em non-empty}. Note that in this case, the pattern list associated with every equation of the equation list will be empty.
+    ~~\\~~\\
+    \begin{alltt}
+    Match [] 
+         [
+          ([],t\(\sb{1}\)),
+             .
+             .
+             .
+          ([],t\(\sb{n}\))
+         ] 
+         t\(\sp{\prime}\) 
+
+    \end{alltt}
+    \item When the equation list associated with the {\em Match} construct is {\em empty}
+    \begin{alltt}
+    Match [] [] t\(\sp{\prime}\) 
+    \end{alltt}
+\end{enumerate}
+Reduction of the base case {\em Match} constructs has been given in Table \ref{ExBaseCase} below.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Before} & {\bf After} \\ 
+\hline
+\begin{minipage}{3in}
+ \begin{alltt}
+
+    Match [] 
+         [
+          ([],t\(\sb{1}\)),
+             .
+             .
+             .
+          ([],t\(\sb{n}\))
+         ] 
+         t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+  t\(\sb{1}\)
+     
+\end{alltt} 
+\end {minipage}\\ 
+\hline
+\begin{minipage}{3in}
+ \begin{alltt}
+
+    Match [] [] t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+  t\(\sp{\prime}\) 
+     
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Reduction Rule for Base Case}
+\label{ExBaseCase}
+\end{center}
+\end{table}
+
+\section {An Example of Pattern-Matching Compilation}
+In this section, reduction rules described in sections \ref{RedMatch} and \ref{BaseCase} are used to  compile the {\em Match} construct for {\em myFun} function defined in section \ref{MatchCon}. The first two steps of the reductions have already been done as examples of using the {\em variable case} and {\em constructor case} in Table \ref {exvarRule} and Table \ref {exConsRule} respectively. The first {\em Match} construct in the table below is the {\em Match} construct from the {\em After} column of Table \ref {exConsRule}.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+\begin{minipage}{3.5in}
+\begin{alltt}
+
+Step 1 :-
+
+case u\(\sb{2}\) of 
+  Nil -> 
+    Match [u\(\sb{3}\)] [([ys], P u\(\sb{1}\) ys)] t\(\sp{\prime}\) 
+  Cons u\(\sb{4}\) u\(\sb{5}\) -> 
+    Match [u\(\sb{4}\),u\(\sb{5}\),u\(\sb{3}\)]
+      [
+        ([x,xs,Nil],       Q u\(\sb{1}\) xs),
+        ([x,xs,Cons(y,ys)],R x xs y ys)
+      ]
+      t\(\sp{\prime}\) 
+
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.5in}
+\begin{alltt}
+
+Step 2 :-
+
+case u\(\sb{2}\) of 
+  Nil -> 
+    Match [] [([], P u\(\sb{1}\) u\(\sb{3}\) )]
+  Cons u\(\sb{4}\) u\(\sb{5}\) -> 
+    Match [u\(\sb{5}\),u\(\sb{3}\)]
+      [
+        ([xs,Nil],       Q u\(\sb{1}\) xs),
+        ([xs,Cons(y,ys)],R u\(\sb{4}\) xs y ys)
+      ]
+      t\(\sp{\prime}\) 
+
+\end{alltt} 
+\end {minipage}\\ 
+\hline 
+\begin{minipage}{3.5in}
+\begin{alltt}
+
+Step 3 :-
+
+case u\(\sb{2}\) of 
+  Nil -> 
+    P u\(\sb{1}\) u\(\sb{3}\) 
+  Cons u\(\sb{4}\),u\(\sb{5}\) -> 
+    Match [u\(\sb{3}\)]
+      (
+       [([Nil],       Q u\(\sb{1}\) u\(\sb{5}\))] ++
+       [([Cons(y,ys)],R u\(\sb{4}\) u\(\sb{5}\) y ys)]
+      )
+      t\(\sp{\prime}\)
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.5in}
+\begin{alltt}
+
+Step 4 :-
+
+case u\(\sb{2}\) of 
+  Nil -> P u\(\sb{1}\) u\(\sb{3}\)
+  Cons u\(\sb{4}\),u\(\sb{5}\) -> 
+    case u3 of 
+      Nil -> Q u\(\sb{1}\) u\(\sb{5}\)
+      Cons u\(\sb{6}\) u\(\sb{7}\) -> 
+        Match [u\(\sb{6}\), u\(\sb{7}\)]
+              ([y,ys],R u\(\sb{4}\) u\(\sb{5}\) y ys)
+              t' 
+
+
+\end{alltt} 
+\end {minipage} \\ 
+\hline
+\begin{minipage}{3.5in}
+\begin{alltt}
+
+Step 5 :-
+
+case u\(\sb{2}\) of 
+  Nil -> P u\(\sb{1}\) u\(\sb{3}\)
+  Cons u\(\sb{4}\),u\(\sb{5}\) -> 
+    case u3 of 
+      Nil -> Q u\(\sb{1}\) u\(\sb{5}\)
+      Cons u\(\sb{6}\) u\(\sb{7}\) -> 
+        Match []
+              ([],R u\(\sb{4}\) u\(\sb{5}\) u\(\sb{6}\) u\(\sb{7}\))
+              t' 
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3.5in}
+\begin{alltt}
+Step 6 :-
+
+case u\(\sb{2}\) of 
+  Nil -> P u\(\sb{1}\) u\(\sb{3}\)
+  Cons u\(\sb{4}\) u\(\sb{5}\) -> 
+    case u3 of 
+      Nil -> Q u\(\sb{1}\) u\(\sb{5}\)
+      Cons u\(\sb{6}\) u\(\sb{7}\) -> R u\(\sb{4}\) u\(\sb{5}\) u\(\sb{6}\) u\(\sb{7}\)
+
+
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Reduction of Match for myFun}
+\label{exMyFun}
+\end{center}
+\end{table}
+~~\\~~\\
+The function definition of {\em myFun} with compiled {\em pattern-matching} is as below :- 
+\newpage
+\begin{alltt}
+fun myFun =
+   u\(\sb{1}\),u\(\sb{2}\),u\(\sb{3}\) ->
+        case u\(\sb{2}\) of 
+          Nil -> P u\(\sb{1}\) u\(\sb{3}\)
+          Cons u\(\sb{4}\) u\(\sb{5}\) -> 
+            case u3 of 
+              Nil -> Q u\(\sb{1}\) u\(\sb{5}\)
+              Cons u\(\sb{6}\) u\(\sb{7}\) -> R u\(\sb{4}\) u\(\sb{5}\) u\(\sb{6}\) u\(\sb{7}\)
+
+
+
+\end{alltt} 
+
+\section {Totality of MPL Functions}
+Currently every MPL function is required to be total for successful {\em pattern-matching} compilation. Functions that are not total will throw an error in the compilation owing to the missing constructors.
+
+\end {document}

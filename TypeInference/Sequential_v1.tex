@@ -1,7 +1,6 @@
 \documentclass[11pt]{article}
 
-\title{Type Inferencing in MPL}
-\title{Typing Rules for Sequential MPL}
+\title{Type System for MPL}
 \usepackage{amsmath }
 \usepackage{framed}
 \usepackage{proof}
@@ -114,24 +113,16 @@
 
 \maketitle
 
-\section{Type Inferencing}
-
-\subsection {Introduction}
-This chapter deals with the type inference of the various MPL constructs, namely functions, processes, terms and process commands.
-
-\subsection {Type Formation Rules}
-Let T be a set of atomic types, $\Omega_{D}$ be a set of type formation symbols for data types and $\omega_{D}$ is a function called arity that describes the number of parameters that the type needs.
+\section {Introduction}
+In this chapter, we describe type inference for MPL. we have a look at the generation of type equations for the Sequential MPL (terms and functions) is dicussed followed by the generation of type equation for Concurrent MPL. Finally, we look at an algorithm to solve the type equations to get the most general type.
+\section {Type Formation Rules}
+Let T be a set of atomic types (type variables), $\Omega$ be a set of type formation symbols for user defined data/codata types like Tree,List etc. $\omega$ is a function called \emph{arity} that describes the number of parameters that the type needs.
 \begin{align*}
-    \omega_{D} ~ : ~ \Omega_{D} ~ \to ~ \mathbb {N}  
+    \omega ~ : ~ \Omega ~ \to ~ \mathbb {N}  
 \end{align*}
-Similarly, $\omega_{C}$ is the arity function for $\Omega_{C}$ which is a set of set of type formation symbols for codata types.
-\begin{align*}
-    \omega_{C} ~ : ~ \Omega_{C} ~ \to ~ \mathbb {N}  
-\end{align*}
-Elements of T can be type variables or type constants like Int, Double and Char. Apart from the atomic types, MPL also has data types, codata types and products as types. Type formation rules describes the rules for the construction of valid types from the elements of T.
+Type formation rules describes the rules for the construction of valid types from the elements of T.
 ~~\\~~\\ 
-The type formation rules for MPL are given by the following rules.  
-\newpage
+The type formation rules for MPL are given by the rules in the below table.  
 \begin{mdframed} [style=MyFrame,userdefinedwidth=12cm,align=center,
                   frametitle=Type Formation Rules,frametitlerule=true,
                   frametitlerulewidth = 1pt
@@ -167,128 +158,12 @@ The type formation rules for MPL are given by the following rules.
   { 
     A_1~ type && \ldots && A_n ~type \hskip 2em \omega (C)~ =~ n 
   }
+
 \end{mdframed}
-~~\\
-\subsection {Type Inferencing}
-Consider an Algebraic Type System consisting of functions and variables as terms. The term formation rules for the terms are as below.
-~~\\~~\\ 
-\infer [\rm var]
-  {
-    \Gamma, x:A \vdash x:A
-  }
-  { 
-  }
 ~~\\~~\\
-\infer [\rm fun]
-  {
-    \Gamma \vdash ~ f (m_1,\ldots,m_n):B 
-  }
-  { 
-    \Gamma \vdash m_1 : A_1, && \ldots &&
-    \Gamma \vdash m_k : A_k && f:A_1,\ldots,A_k \to B \in \Omega  
-  }
-~~\\~~\\ 
-In this type system consider a function,$f(x,y)~ = ~x $ such that
-$f:A,B \to A \in \Omega$. Let us try inferring the type of $f~(1,y).$
-~~\\~~\\ 
-\infer []
-  {
-   y:B \vdash ~ f (1,y):Int  
-  }
-  { 
-    y:B \vdash y:B && y:B \vdash 1:Int 
-    && f:A ,B \to A \in \Omega    
-  }
-~~\\~~\\ 
-Please note that $f:Int,B \to Int$ is a more specific type than the type of $f$ initially assigned in $\Omega$. The new more specific type of $f$ is consistent with its original more generic type. However, this way of type inferencing while suitable for calculation by hand doesn't lend itself well to automation. For this reason, the typing rules are enhanced with equations that capture the constraint relationship between the different parts of the construct being type inferred.
-~~\\~~\\ 
-\infer [\rm var]
-  {
-    \Gamma, x:A \vdash x:B ~~ \big\langle A = B \big\rangle
-  }
-  { 
-  }
+Notice that data types and codata types are formed using the same typing rules. However they have been differentiated here because data types and codata types are used differently in MPL.
 ~~\\~~\\
-\infer [\rm fun]
-  {
-    \Gamma \vdash ~ f (m_1,\ldots,m_n):C 
-    ~~\big\langle B = C,A_1 = A_1^\prime,\ldots,A_k = A_k^\prime \big\rangle
-  }
-  { 
-    \Gamma \vdash m_1 : A_1^\prime, && \ldots &&
-    \Gamma \vdash m_k : A_k^\prime && f:A_1,\ldots,A_k \to B \in \Omega  
-  }
-~~\\~~\\
-Now consider type inferring the function $ f(1,y)$ in this setup.
-~~\\~~\\
-\infer []
-  {
-   y:B \vdash ~ f (1,y):Int  
-   ~~~\big\langle 
-      A^\prime = Int,~B^\prime = B,~A = Int 
-   \big\rangle
-  }
-  { 
-    y:B \vdash y:B^\prime && y:B \vdash 1:Int 
-    && f:A^\prime,B^\prime \to A \in \Omega    
-  }
-~~\\~~\\ 
-Once the type equations are solved by relacing the value of $A,B$ and $A^\prime$ in function type of $f$, $Int,B \to Int $ is obtained. This is the type of function $f$.
-~~\\~~\\ 
-The type inference has been broken down into two mechanical steps, namely {\em Generation of Type Equations} and {\em Solving Type Equations}. The mechanical and algorithmic nature of this presentation is useful when implementing type systems on a computer.  
-~~\\~~\\
-One drawback of the equational presentation of the type systems mentioned in the previous paragraph is that one ends up with a big linear list of equations. Solving this list of equations maybe slow as one needs to go through the entire list every time in order to look for substitutions.
-~~\\~~\\
-In this thesis, we have modified this presentation to take advantage of the structure of the {\em type inference tree} when searching for substitutions. In this approach, the algorithm only searches the part of the type inference tree which could have generated these substitutions. Thus our algorithm localises the substitution search leading to faster soltuion of type equations. Our algorithm also has an added advantage of localising the type errors. This results in better location accuracy when reporting the type errors.
-~~\\~~\\ 
-Consider a function $f(a,b)$ such that $ f:~A,B \to C \in \Omega $ and one needs to type infer $f(x+y,z)$ in our setup. In the below {\em type inference tree}, the context x:X,y:Y,z:Z has been replaced with symbol $\Gamma$ for the purpose of succinct representation. 
-
-~~\\~~\\
-\infer []
-  {
-   \Gamma \vdash ~ f (x+y,z):A  
-   ~~~\big\langle 
-      A^\prime = Int,~B^\prime = B,~A = Int 
-   \big\rangle
-  }
-  { 
-    \infer []
-     {
-      \Gamma \vdash x + y ~:C
-     } 
-     {
-       \infer []
-       {
-        \Gamma \vdash x:D
-       }
-       {
-       }
-        && 
-       \infer []
-       {
-        \Gamma \vdash y:E
-       }
-       {
-       }
-     } 
-      && \infer []
-           {\Gamma \vdash  z:B} 
-           {}
-      &&f:P~,Q \to R \in \Omega 
-  }
-
-
-\subsection {Overview of Type Inference of MPL Constructs}
-Type inference involves two main steps. 
-\begin {itemize}
-\item {\bf Generating Type Equations} - Type Equations represent the constraint relationship between the different parts of the construct being type inferred. 
-~~\\~~\\
-Using the typing rules, a series of equations are generated in the proof search direction. The equation structure hierarchical following the shape of the type inference tree. Thus, the placement of an equation inside a type equation depends on thes the location within a type inference tree that resulted in that equation within the type equation. This approach allows hierarchical solution of type equations and better localisation of type errors.     
-\item {\bf Solving Type Equations} - The type equations are solved in order to get the most general type of a given program.
-\end{itemize}
-In this chapter, the generation fo type equations for the Sequential MPL (terms and functions) is dicussed followed by the generation of type equation for Concurrent MPL. Finally, we look at an algorithm to solve the type equations to get the most general type.
-
-\section {Generating Type Equations for Sequential Terms }
+\section {Term Formation Rules for Sequential Terms}
 Here the type inference rules for the various sequential MPL constructs are dicussed. The type inference rules can be thought of as term formation rules enhanced with the typing information of the constituting terms.
 \subsection {Variable Term}
 % ---------------------------------------------------
@@ -314,10 +189,11 @@ In order to infer a variable which is a sequential term,the variable should be l
 % ----------------------call-------------------------
 % ---------------------------------------------------
 \subsection {Function Call}
-Let $\Omega$ be a set of function symbols and $T_y$ be a type. $\sigma$ is a function of the below type that returns as output the the input and output types of a function symbol.
+Let $\Omega$ be a set of function symbols,$T_y^*$ be the set of input types and $T_y$ be the set of output types. $\sigma$ is a function of the below type that returns as output the the input and output types of a function symbol.
+$\omega : \Omega \to T_y^* \times T_y$
+
 ~~\\~~\\
-$sigma$ is defined both for inbuilt functions as well user defined functions.
-Example of $\sigma$ for inbuilt functions is below. 
+$\sigma$ is defined both for inbuilt functions as well user defined functions. Example of $\sigma$ for inbuilt functions is below. 
 \begin{align*}
     & \sigma (+_{Int}) ~~ = ~~ ([Int,Int],Int) ~~\\ 
     & \sigma ('s') ~~~~~ = ~~ ([~],Char)
@@ -326,19 +202,31 @@ Consider a user defined function factorial which takes an integer as the input a
 \begin{align*}
     & \sigma (fact) ~~ = ~~ ([Int],Int)  
 \end{align*}
-Consider a function f taking m inputs of types $S_1$, $\ldots$ $S_m$. The output type of the function is S. 
+Consider a function f taking m inputs of types $S_1$, $\ldots$ $S_m$ and the output type S. 
 \begin{align*} 
  & f:\forall A_1,~ \ldots,~A_k.~S_1,\ldots,S_m \to S 
 \end{align*}
-The output and input types are $\alpha$-renamed before using these constructs in the type equations. This is done to avoid any name clashes between the variables of the function and the variables already used in the equation.
+~~\\~~\\
+\subsubsection {$\alpha$-renaming function constructs}
+ \label{alpha}
+Consider two terms $t_1$ and $t_2$ for which the equations $\exists~a,b.~a \times b$ and $\exists~a.~a \times a$ are generated. It is intended to equate $t_1$ and $t_2$ which means that their type equations need to be unified. 
+\begin{align}
+     \exists~a,b.~a \times b = \exists~a.~(a \times a)\times a
+ \end{align} 
+Unification would be dicussed in details in section but the intent here is to force $a ~ = ~ b$. However, we also end up with an $a ~ = ~ a \times a $ which fails occurs check suggesting that the two equations can't be unified. To avoid this problem, $\alpha$-renaming is used which replaces variables on both the sides of the equations with fresh variables. Thus, $\alpha$-renaming will generate the below type equation.
+\begin{align}
+     \exists~a_1,b_1.~a_1 \times b_1 = \exists~a_2.~(a_2 \times a_2)\times a_2
+ \end{align} 
+Unification of the above equations yields $a_1 =~ (a_2 \times a_2)$ and $b_1 = a_2$ which is the desired solution.
+~~\\~~\\
+The output and input types of the function $f$ are $\alpha$-renamed before using these constructs in the type equations. This is done to avoid any name clashes between the variables of the function and the variables already used in the equation.
 \begin{align*}
  & ~~ S_{i}^\prime = (\Lambda A_1,\ldots,A_k.~S_i)~A_1^{\prime},\ldots,A_k^{\prime} ~~~ \{~ 1~ \leq~ i~ \leq m\} \\
  & ~~ S^{\prime} = (\Lambda A_1,\ldots,A_k.~ S)~A_1^{\prime},\ldots,A_k^{\prime} 
  \end{align*}
-\begin{itemize}
-   \item The type of a function call is the output type of the function type of the function being called.
-   \item The type of the various input arguments of the function call can be  deduced from the input types of the function type of the function being called.
- \end{itemize} 
+\subsubsection {Type Equations for Function Call }
+The table $givetabref$ shows the term formation rule for function call.
+~~\\ 
  \begin{mdframed} [style=MyFrameSp,userdefinedwidth=14cm,align=center,
                   frametitle=Typing rule for function call,frametitlerule=true,
                   frametitlerulewidth = 1pt
@@ -369,13 +257,16 @@ The output and input types are $\alpha$-renamed before using these constructs in
 }  
 \end{mdframed}
 
-~~\\~~\\
+\begin{itemize}
+   \item The type of a function call is the output type of the function being called.
+   \item The type of the various input parameters of the function call can be  deduced from the input types of the function being called.
+ \end{itemize} 
 
 % ---------------------------------------------------
 % ---------------------- Constants-------------------
 % ---------------------------------------------------
 \subsection {Constant Term}
-{\sf constants} can be one of the built in constant types, like int, double and char.
+\emph {constants} are function of arity 0. They have been presented in a different section for the ease of understanding. constants can be one of the built in constant types, like int, double and char.
 ~~\\~~\\
 \begin{mdframed} [style=MyFrame,userdefinedwidth=10cm,align=center,
                   frametitle=Typing rule for constants,frametitlerule=true,
@@ -417,20 +308,25 @@ The output and input types are $\alpha$-renamed before using these constructs in
 % ---------Constructor/Destructor--------------------
 % ---------------------------------------------------
 ~~\\~~\\
-\subsection {Case and Constructor Term}
-{\sf constructor } term creates a data type with the constructors of that data type.
-~~\\~~\\
-{\sf case} term branches on the different constructors of a data type. Every branch consists of a constructor and a term as can be seen from the case syntax on page ~ \pageref{caseLab}. The term is executed when the corresponding constructor is selected. 
+\subsection {Terms for Data Types}
+A data type in MPL can be thought of as a construct that allows three terms to be defined over it, namely constructor, case and fold. 
 \subsubsection {Data Type Declaration}\label{dataDef}
-Let us define a data type D($A_1$, $\ldots$, $A_k$) and $C_1$ $\ldots$ $C_m$ be its data constructors. The data type D ($A_1$, $\ldots$, $A_k$)  is polymorphic in type variables $A_1$, $\ldots$, $A_k$ which means that $A_1$, $\ldots$, $A_k$ are the union of type variables used in the different constructors of the data type.
-For constructor $C_1$ which takes {\bf ``a''} number of input terms, $F_{11}$, $\ldots$, $F_{1a}$ repesent the input types of those terms.
+Let us define a data type D($A_1$, $\ldots$, $A_k$) and $C_1$ $\ldots$ $C_m$ be its data constructors. The data type D ($A_1$, $\ldots$, $A_k$)  is polymorphic in type variables $A_1$, $\ldots$, $A_k$.
+
 \begin{align*} 
 \forall A_1,~ \ldots,~A_k.~data~ D(A_1,\ldots,A_k)  ~\to~ A =
  & ~~ C_1 : F_{11},~ \ldots, ~ F_{1a} ~~~~~\to ~~~ A \\
  & ~~~~ \vdots \hskip 4em \vdots \hskip 7em \vdots \\ 
  & ~~ C_m : F_{m1},~ \ldots, ~ F_{mn} ~~\to ~~~ A
 \end{align*}
-The different constructs of the data type definition above are $\alpha$-renamed with fresh variable $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ to avoid any naming conflicts when these constructs are used in type equations. For the same reason, we will use the $\alpha$-renaming technique while type inferring other MPL constructs as well. The renamed constructs have been represented by adding a superscript $\prime$ to the name of their names.
+An example of a data definition can be the a List(A).
+\begin{align*}
+    \forall A.~data ~~ List(A)~ =~ & Nil \\ 
+                               ~& Cons (A)
+\end{align*}
+This is a polymorphic list meaning $A$ can be any type, for example $Int,~Char,~List(Char)$. Replacing A with these types would return $List(Int),~List(Char)$ and $List(List(Char))$ respectively. 
+~~\\~~\\ 
+The different constructs of the data type definition above are $\alpha$-renamed with fresh variable $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ to avoid any naming conflicts when these constructs are used in type equations. The necessity for $\alpha$-renaming was motivated in section~\ref{alpha}. The renamed constructs have been represented by adding a superscript $\prime$ to the name of their names.
 ~~\\ ~~\\ 
 $\Lambda$ is a function that takes as arguments a data construct, the old variables present in that data type construct and the fresh variables to replace the old variables. The output of this function is a data type construct where the old variables in its body have been replaced by the new variables.   
 
@@ -439,16 +335,43 @@ $\Lambda$ is a function that takes as arguments a data construct, the old variab
  & ~~ F_{xy}^\prime = (\Lambda A_1,\ldots,A_k.~F_{xy})~A_1^{\prime},\ldots,A_k^{\prime} 
  ~~~  \{1 \leq x \leq m,~1 \leq y \leq p ~|~ p \in \{a,b,\ldots,n\} \} 
  \end{align*}
-\subsubsection {Type Equations for Case and Constructor Term} 
+
+%% ================================================
+%% ================================================
+\subsubsection {Constructor, Case and Fold term}
+{\sf constructor } term creates a data type with the constructors of that data type.
+~~\\~~\\
+{\sf case} term branches on the different constructors of a data type. Every branch consists of a constructor and a term as can be seen from the case syntax on page ~ \pageref{caseLab}. The term is executed when the corresponding constructor is selected. 
+For constructor $C_1$ which takes {\bf ``a''} number of input terms, $F_{11}$, $\ldots$, $F_{1a}$ repesent the input types of those terms.
+~~\\~~\\
+fold is used to implement higher order primitive recursive functions which gurantees termination.Like case, fold also has branches corresponding to every constructor of the data type over which one is folding. Every branch has some parameters on the left side of the arrow and a term on the
+right side as can be seen in the fold syntax on page 6.
+~~\\~~\\ 
+For all the constructors of a data type, their fold functions are  inserted in the symbol table.
+%% ================================================
+%% ================================================
+
+\subsubsection {Type Equations for Constructor Term} 
 The function type of a constructor can be looked up from the symbol table.
 \begin{itemize}
   \item The output type of the {\sf constructor} term is the output type of the function for that constructor looked up from the symbol table. 
-  \item The types of the various arguments of the constructor are the corresponding input types  for that constructor looked up from its function type from the symbol table.
+  \item The types of the various parameters of the constructor are the corresponding input types  for that constructor looked up from its function type from the symbol table.
   \item $E_1$, $\ldots$, $E_j$ are the type equations generated for the terms $t_1$, $\ldots$, $t_j$ respectively.
 \end{itemize}
-~~\\
-The type of a {\sf case} term is the type of the terms on the right side of the branches. A well typed case term will have same type for all the terms on the right side of the branches. The types of the input arguments for a constructor on the left hand side of a branch is obtained by looking up the function type for that constructor from the symbol table. 
-\newpage
+\subsubsection {Type Equations for Case Term}
+\begin{itemize}
+  \item The type of a {\sf case} term is the type of the terms on the right side of the branches.
+  \item A well typed case term will have same type for all the terms on the right side of the branches.
+  \item The types of the input parameters for a constructor on the left hand side of a branch is obtained by looking up the input types of the function type for that constructor. Teh function type of the constructor is obtained from the symbol table. 
+\end{itemize}
+
+\subsubsection {Type Equations for Fold Term}
+\begin{itemize}
+  \item The type of a {\sf fold} term is the type of the terms on the right side of the branches.
+  \item In a well typed {\sf fold} term, all the terms on the right side of the branches will have same type.
+  \item The types of the input parameters for a given constructor on the left hand side of a branch is obtained by looking up the fold function type for that constructor from the symbol table.
+\end{itemize}
+~~\\~~\\
 \begin{mdframed} [style=MyFrame,userdefinedwidth=16.1cm,align=center,
                   frametitle=Typing rule for constructor and case,frametitlerule=true,
                   frametitlerulewidth = 1pt
@@ -520,25 +443,7 @@ The type of a {\sf case} term is the type of the terms on the right side of the 
              \Gamma,x_{11}:T_{11},\ldots,x_{1a}:T_{1a} & \vdash & t_1 : T_1
              & \langle E_1 \rangle 
          \end{array} 
-       }~~\\~~\\     
-\end{mdframed} \label{caseLab}
-
-~~\\~~\\
-
-% ---------------------------------------------------
-% ---------------------- Fold -----------------------
-% ---------------------------------------------------
-\subsection {Fold Term}
-{\sf fold} is used to implement higher order primitive recursive functions which gurantees termination. Like case, fold also has branches corresponding to every constructor of the data type over which one is folding. Every branch has some argument on the left side of the arrow and a term on the right side as can be seen in the fold syntax on page \pageref{foldLab}. 
-~~\\~~\\
-For all the constructors of a data type, their fold functions are  inserted in the symbol table. We will use the data definition for D($A_1$, $\ldots$, $A_k$) and the renamed constructs from the section \ref{dataDef} on page \pageref{dataDef}
-~~\\~~\\
-The type of a {\sf fold} term is the type of the terms on the right side of the branches. In a well typed {\sf fold} term, all the terms on the right side of the branches will have same type. The types of the input arguments for a given constructor on the left hand side of a branch is obtained by looking up the fold function type for that constructor from the symbol table. 
-\begin{mdframed} [style=MyFrameSp,userdefinedwidth=14cm,align=center,
-                  frametitle=Typing rule for fold,frametitlerule=true,
-                  frametitlerulewidth = 1pt
-                 ] 
-~~\\
+       }~~\\~~\\  
 \infer [\rm fold] {
     \begin {array}[c]{l}
          \Gamma \vdash 
@@ -584,15 +489,15 @@ The type of a {\sf fold} term is the type of the terms on the right side of the 
                  x_{11}:T_{11},\ldots,x_{1a}:T_{1a} & \vdash & t_1 : T_1
                  & \langle E_1 \rangle 
              \end {array}
-       }
-\end{mdframed}\label{foldLab}
-
+       }         
+\end{mdframed} \label{caseLab}
 ~~\\~~\\
 % ---------------------------------------------------
 % -----------------------Record----------------------
 % ---------------------------------------------------
-\subsection {Record and Destructor Term}
-{\sf record } term forms a record for a codata type. {\sf dest} destructs a record of a codata type with a particular destuctor of that codata type.It obtains the term corresponding to that destructor from the record.
+\subsection {Terms for Codata Types}
+A codata type in MPL can be thought of as a construct that allows three terms to be defined over it, namely destructor, record and unfold.
+
 \subsubsection {Codata Type Declaration}
 Consider the codata declaration for a codata type C$(A_1,\ldots,A_k)$. $D_1$, $\ldots$, $D_m$ are the different destructors of the codata type. C$(A_1,\ldots,A_k)$  is polymorphic in type variables $A_1,\ldots,A_k$ which means that $A_1,
 \ldots,A_k$ are the type variables used in the different destructors of the codata type. For destructor $D_1$ which takes {\bf ``a''} number of input terms , $F_{11}$, $\ldots$, $F_{1a}$ repesent the types of the input terms.
@@ -610,15 +515,28 @@ Renaming the different constructs in the codata C$(A_1,\ldots,A_k)$ with fresh v
  & ~~ P_{i}^\prime ~~~=~ (\Lambda A_1,\ldots,A_k.~ P_i)~A_1^{\prime},\ldots,A_k^{\prime} 
   ~~~~~ \{ 1 \leq i \leq m \} \\
  \end{align*}
-\subsubsection {Type Equations for Record and Destructor Term}
+\subsubsection {Destructor, Record and Unfold Term} 
+{\sf record } term forms a record for a codata type. 
+~~\\~~\\
+{\sf destructor} destructs a record of a codata type with a particular destuctor of that codata type.It obtains the term corresponding to that destructor from the record.
 
-The type of a {\sf record} of a codata type is that codata type.
-~~\\~~\\ 
+\subsubsection {Type Equations for Destructor Term}
+
 The function type of a destructor can be looked up from the symbol table. Following details about the type of destructor can be obtained from its function type.
 \begin{itemize}
-  \item if a destructor takes n arguments, then the corresponding function type of the destructor will have (n+1) input types. The first n types out of the (n+1) types are the types of the corresponding arguments. The $(n+1)^{th}$ type is the codata type of the destructor.
+  \item if a destructor takes n parameters, then the corresponding function type of the destructor will have (n+1) input types. The first n types out of the (n+1) types are the types of the corresponding parameters. The $(n+1)^{th}$ type is the codata type of the destructor.
+
   \item The output type of the destructor is the output type of the function for that destructor looked up from the symbol table.    
 \end{itemize}
+
+\subsubsection {Type Equations for Record Term}
+\begin{itemize}
+  \item The type of a {\sf record} of a codata type is that codata type.
+  \item The types of the input parameters to a destructor term can be obtained by looking at the input types of function type of the destructor. The function type of the destructor is obtained from the symbol table.
+\end{itemize}
+
+~~\\~~\\ 
+
 \begin{mdframed} [style=MyFrameSp,userdefinedwidth=15cm,align=right,
                   frametitle=Typing rules for record and destructor,frametitlerule=true,
                   frametitlerulewidth = 1pt
@@ -750,7 +668,7 @@ The function type of a destructor can be looked up from the symbol table. Follow
 % ---------------------- If stmt---------------------
 % ---------------------------------------------------
 \subsection {If Term}
-{\sf if} term has three arguments, a boolean expression and two statements. Depending on the boolean value being True or False, first or the second statement is executed. The type of the {\sf if} statement is the type of the first and second statement. A correctly typed if term will have these two statements of the same type.
+{\sf if} term takes three arguments, a boolean expression and two statements. Depending on the boolean value being True or False, first or the second statement is executed. The type of the {\sf if} statement is the type of the first and second statement. A correctly typed if term will have these two statements of the same type.
 ~~\\~~\\
 \begin{mdframed} [style=MyFrame,userdefinedwidth=14cm,align=center,
                   frametitle=Typing rule for if,frametitlerule=true,

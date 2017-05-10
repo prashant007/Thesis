@@ -1,0 +1,376 @@
+\documentclass[11pt]{article}
+
+\title{Lambda Lifting Transformation}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
+\begin{document}
+
+\maketitle
+\section {Lambda Lifting} 
+Once {\em pattern-matching compilation} is completed, the next step in the compilation of MPL programs is {\em lambda lifting transformation}. MPL allows the programmers to define local functions. However, CMPL doesn't allow for local function defintions and thus all the local MPL functions should be put in the global scope. {\em Lambda Lifting} is the transformation that puts the local functions in the global scope.
+
+\section {Examples of Local Functions in MPL}
+
+
+The {\em defn} and {\em let} are the two MPL constructs that allow for local function defintions. The difference between the local functions defined with {\em defn} and {\em let} is that the functions defined with {\em let} can have {\em free variables} where as the ones defined with {\em defn} can't have {\em free variables}. {\em free variables} of a function are the variables used inside a function definition that are not elements of the set of that function's parameters. 
+~~\\~~\\ 
+Examples highlighting the difference between the local functions defined using {\em defn} and {\em let} have been given in Table \ref {LoclFuns}. The local function definition {\em myFun} in the {\em where} clause of {\em defn} statement doesn't have any free variables. However, functions {\em xFun} and {\em yFun} in the {\em where} clause of {\em let} statement have free variables $n_1$ and $n_2$ respectively.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf Local Function with defn} & {\bf Local Functions with let} \\ 
+{\bf (no free variables)} & {\bf (has free variables $n_1$ and $n_2$)} \\  
+\hline
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+    fun last =
+      l -> case l of 
+       (x:[]) -> x 
+       (x:xs) -> last(xs) 
+
+    defn of
+        fun someFun =
+            x, y -> myFun (x,y)
+    where
+      fun myFun  = 
+         l1,l2 ->
+             case l1 of 
+               []     -> []
+               (x:xs) -> 
+                    case l2 of 
+                      [] -> []
+                      (y:ys) -> 
+                        (x+y):myFun (xs,ys)
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3in}
+\begin{alltt}
+
+fun rFun = 
+    n1, n2, nl -> 
+      let 
+        xFun(nl)
+      where
+        fun xFun = 
+          l ->
+            case l of 
+              []     -> n1 
+              (x:xs) -> x + yFun (xs)    
+
+        fun yFun = 
+          l ->
+            case l of 
+              []     ->  n2 
+              (x:xs) -> x + yFun (xs)
+
+
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Local functions in MPL }
+\label{LoclFuns}
+\end{center}
+\end{table}
+
+
+\section {Lambda Lifting in MPL}
+As seen earlier {\em lambda lifting} is the transformation that puts the local functions in the global scope. The complexity of the transformation arises from the presence of {\em free variables} in the function definitions. If a function has free variables in its definition, then putting it in global scope will make the free variables out of scope which would result in a semantic error. Example - This can be seen in the local functions {\em xFun} {\em yFun} defined with {\em let} in the Table \ref{LoclFuns} having $n_1$ and $n_2$ as free variables respectively. If $xFun$ and $yFun$ were to be moved to the same scope level as {\em rFun} then variables $n_1$ and $n_2$ will become out scope in their respective functions.
+~~\\~~\\ 
+Therefore, before a function {\em f} is placed in the global scope, it should be ensured that it doesn't contain any {\em free variables}. One way to do this can be to find all the {\em free variables} of {\em f} and append them to the function parameters of f. Now all the free variables of {\em f} become bound and they can be placed in the global scope. This technique is viable except for one flaw. The {\em free variables} of the functions called inside {\em f} also contribute to the free variables of {\em f}. Thus, the {\em free variables} obtained from these functions called inside {\em f} should be unioned with the {\em free variables} directly present in {\em f}. The {\em free variables} calculated as a result of this can be added to the parameter this and the inner scope functions can be {\em lambda lifted}.
+~~\\~~\\
+For example - The free variable of function {\em yFun} and {\em xFun} in Table \ref {LoclFuns} can be calculated as follows.
+\begin{align*}
+free vars (yFun) &= \left\{n_2\right\}~\cup ~free vars (yFun) \\ 
+                 &= \left\{n_2\right\} \\~~\\ 
+free vars (xFun) &= \left\{n_1\right\}~\cup ~free vars (yFun) \\ 
+                 &= \left\{n_1,~n_2\right\} \\ 
+\end{align*}
+
+\section{Lambda Lifting Algorithm}\label{LamLiftAlg}
+This algorithm is used to {\em lambda lifts} functions that can have free variables in their definitions. In the case of function defintions in the {\em let} statement that is the case, therefore this algorithm would be required to {\em lambda lift} the function. However, in the case of {\em defn} there are no free variables in the local functions and thus the function can directly be lambda lifted after renaming (the step1 and step 5 of the algorithm). 
+~~\\~\\ 
+{\em Lambda lifting} consists of the following steps :-
+\begin{enumerate}
+    \item {\bf Rename functions and their parameters} - 
+    All the function names are renamed uniquely to ensure that they have an unique name. This is done because before {\em lambda lifting}, different functions in different scopes may have the same name without ambiguity. However, once lambda lifted they will be in the same scope and thus need unique names.
+    ~~\\~~\\ 
+    The parameters of all the function defintions are also renamed with fresh variables to esnure that every function has unique parameters.
+    \item {\bf Compute Set Equations for Functions} -
+    For every function {\em f} defined inside the {\em where} clause of the {\em let} statement, the following triple is computed.
+    \begin{align*}
+    (\left\{free~vars\right\},\left\{bound~vars\right\},[funs~used])
+    \end{align*}
+    \begin{itemize}
+        \item {\em free vars}  are the {\em free variables} in f.
+        \item {\em bound vars} are parameters of f. 
+        \item {\em funs used}  are the list of functions called made inside f.
+    \end{itemize}
+    The pair of the function name and the triple for that function is called a {\em Set Equation} of the function.
+    \begin{align*}
+        Set~Equation (f) = (f,(\left\{free~vars\right\},\left\{bound~vars\right\},[funs~used]))
+    \end{align*}
+    A list of {\em Set Equations} are obtained as a result of this step. 
+    
+    \item {\bf Solving the Set Equations} - Once the list of {\em Set Equations} is generated, the equations are then solved to get the {\em free variables} for all the functions defined inside the {\em where} clause of the {\em let} statement.
+    \begin{alltt}
+    for every set equation (f,(fv,bv,fl)) in set equation list sl do 
+        for every function name n in fl do
+            if fl == [] or fl == [f] 
+               then
+                 return (f,fv) 
+               else      
+                (nfv,nbv,nfl)  <- lookup n in sl
+                modify the set equation to (f,((fv \(\cup\) nfv) \(\setminus\) bv), bv, nfl \(\setminus\)n)        
+    \end{alltt}
+ 
+    \item {\bf Add the free variables to their corresponding functions} - Once the {\em free variables} corresponding to a function are generated, they are added to the parameters of the function definition. This ensures that there are no free variables in the function body. Since the arity of the function has changed, the arguments of the function call must be expanded with the free variables of that function. 
+
+    \item {\bf Push the Local Functions to Global Scope} - Since there are no {\em free variables} in the local functions any more they can be pushed to the global scope. This is the final step in the {\em lambda lifting} transformation.
+\end{enumerate}
+\section {Examples of Lambda Lifting MPL programs}
+
+The first example {\em lambda lifting} transformation is demonstrated (in Table \ref  {LamLiftDefn}) on the program defined with the {\em defn} construct from Table \ref {LoclFuns}. Since, there are no {\em free variables} present in the local functions in the  {\em where} clause of {\em defn}, the local functions can directly be pushed to the global scope once the function and argument renaming has been completed.
+~~\\~~\\
+Second example demonstrates {\em lambda lifting} local functions defined using {\em let} statement in Table \ref {LamLiftLet}. The program defined using {\em let} from Table \ref{LoclFuns}  has been chosen to demonstrate this.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|} \hline
+\begin{minipage}{5in}
+\begin{alltt}
+Original Program :
+
+    fun last =
+      l -> case l of 
+       (x:[]) -> x 
+       (x:xs) -> last(xs) 
+
+    defn of
+        fun someFun =
+            x, y -> myFun (x,y)
+    where
+      fun myFun  = 
+         l1,l2 ->
+           case l1 of 
+             []     -> []
+             (x:xs) -> case l2 of 
+                         [] -> []
+                         (y:ys) -> (x+y):myFun (xs,ys)
+
+\end{alltt} 
+\end {minipage} \\ 
+\hline
+\begin{minipage}{5in}
+\begin{alltt}
+Renamed functions and parameters :
+
+    fun fn1 =
+      u1 -> case u1 of 
+              (x:[]) -> x 
+              (x:xs) -> last(xs)
+
+    defn of
+        fun fn2 =
+            u2, u3 -> fn3 (u2,u3)
+    where
+      fun fn3  = 
+         u4,u5 ->
+           case u4 of 
+             []     -> []
+             (x:xs) -> case u5 of 
+                         [] -> []
+                         (y:ys) -> (x+y):myFun (xs,ys)
+
+\end{alltt} 
+\end {minipage}\\ 
+\hline
+\begin{minipage}{5in}
+\begin{alltt}
+Lambda Lifted Program :
+
+    fun fn1 =
+      u1 -> case u1 of 
+              (x:[]) -> x 
+              (x:xs) -> last(xs)
+
+    fun fn2 =
+        u2, u3 -> fn3 (u2,u3)
+
+    fun fn3  = 
+         u4,u5 ->
+           case u4 of 
+             []     -> []
+             (x:xs) -> case u5 of 
+                         [] -> []
+                         (y:ys) -> (x+y):myFun (xs,ys)
+
+\end{alltt} 
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Lambda lifting Local functions defined with {\em defn} construct}
+\label{LamLiftDefn}
+\end{center}
+\end{table}
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+\begin{minipage}{3in}
+\begin{alltt}
+Original Program 
+
+fun rFun = 
+    n1, n2, nl -> 
+      let 
+        xFun(nl)
+      where
+        fun xFun = 
+          l ->
+            case l of 
+              []     -> n1 
+              (x:xs) -> x + yFun (xs)    
+
+        fun yFun = 
+          l ->
+            case l of 
+              []     ->  n2 
+              (x:xs) -> x + yFun (xs)
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3in}
+\begin{alltt}
+Renamed functions and parameters :
+
+fun fn1 = 
+    u1, u2, u3 -> 
+      let 
+        fn2 (u3)
+      where
+        fun fn2 =  
+          u4 ->
+            case u4 of 
+              []      -> u1 
+              (u5:u6) -> u5 + fn3 (u6)    
+
+        fun fn3 =  
+          u7 ->
+            case u7 of 
+              []     ->  u2 
+              (u8:u9) -> u8 + fn3 (u9)
+
+
+\end{alltt} 
+\end {minipage}\\ 
+\hline
+\begin{minipage}{3in}
+\begin{alltt}
+
+Using the free vars of fn2 and fn3 
+to augment the parameter and arguments
+of the respective functions.
+
+freeVars (fn2) = \(\left\{u1,u2\right\}\) 
+freeVars (fn3) = \(\left\{u2\right\}\) 
+
+fun fn1 = 
+    u1, u2, u3 -> 
+      let 
+        fn2 (u3,u1,u2)
+      where
+        fun fn2 =
+          u4 u1 u2 ->
+            case u4 of 
+              []      -> u1 
+              (u5:u6) -> u5 + fn3 (u6,u2)    
+
+        fun fn3 =
+          u7, u2 ->
+            case u7 of 
+              []     ->  u2 
+              (u8:u9) -> u8 + fn3 (u9,u2)
+
+\end{alltt} 
+\end {minipage} &
+\begin{minipage}{3in}
+\begin{alltt}
+Lambda Lifted Program
+
+
+
+fun fn1 = 
+    u1, u2, u3 -> 
+       fn2 (u3,u1,u2)
+
+fun fn2 =
+  u4 u1 u2 ->
+    case u4 of 
+      []      -> u1 
+      (u5:u6) -> u5 + fn3 (u6,u2)    
+
+fun fn3 =
+  u7, u2 ->
+    case u7 of 
+      []     ->  u2 
+      (u8:u9) -> u8 + fn3 (u9,u2)
+
+
+
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Local functions defined with {\em let} construct}
+\label{LamLiftLet}
+\end{center}
+\end{table}
+
+
+\end {document}

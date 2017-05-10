@@ -1,0 +1,71 @@
+\documentclass[11pt]{article}
+
+\title{Compilation of Pattern Matching}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
+\begin{document}
+
+\maketitle
+\section {Sequential Abstract Machine for MPL (SAMPL)}
+{\em SAMPL} acts as the target to which the sequntial MPL compiles and is subsequently run. {\em SAMPL} is inspired by {\em modern-SEC Machine}  which in turn was inspired by Landin's SECD machine. However, there are a few differences between {\em SAMPL} and {\em modern-SEC Machine}, the most notable one of which are the following :-
+ \begin{itemize}
+   \item {\em SAMPL} is a more sophisticated machine as it has built in {\em data types} and {\em codata types} where as {\em modern-SEC Machine} lacks these constructs.
+   \item {\em modern-SEC Machine} uses {\em strict evaluation} strategy for the execution of programs. In contrast, {\em SAMPL} uses a mixture of two strategies for program reduction, namely {\em lazy evaluation} when handling {\em records} of a {\em codata type} and {\em strict evaluation} strategy when reducing other MPL constructs.
+ \end{itemize}
+
+ \subsection {Evaluation Strategies}
+
+
+~~\\~~\\ 
+{\em SAMPL} is described in terms of a state transition table which guides an  
+~~\\~~\\ 
+Recall that AMPL is represented as a four tuple $\{S,T,E,C\}$ of {\em Stack}, {\em Translation}, {\em Environment} and {\em Code}. However, {\em Translation} can be removed from the tuple while discussing {\em SAMPL}. There 
+
+
+
+The major differences between {\em modern-SECD Machine} and {\em SAMPL} is are the following :-
+
+\begin{itemize}
+   \item {\em modern-SEC Machine} uses De-Bruijn's indexes to lookup values in an environment. However, 
+   \item 
+ \end{itemize} 
+
+\end {document}

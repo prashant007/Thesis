@@ -99,7 +99,7 @@
 \section{Type Inferencing}
 This chapter deals with the generation of the type equations for the Concurrent MPL. The types in the concurrent world are known as protocols, i.e the type of a channel is also called a protocol.
 ~~\\~~\\
-The protocols are formed inductive using the base protocol lsited below.
+The protocols are formed inductively using the base protocol listed below.
 \begin {itemize}
   \item Get
   \item Put
@@ -593,47 +593,4 @@ We $\alpha$ rename the input type of the handles, $T_1$, $\ldots$, $T_n$ and pro
 
 \end{mdframed}
 
-% ---------------------------------------------------
-% ---------------------- Function W/O Types----------
-% ---------------------------------------------------
-\subsection {Function definitions without an annotated type}
-These are the function definitions for which the programmer has not annotated the expected type of the function. Once the function defintion is type inferred, the function name is inserted in the symbol table with this type. 
-~~\\~~\\
-The patterns on the left hand side of the function defintion can either be variables or constructor patterns. For the ease of describing the rule, the patterns have been divided into two cases.
-\begin {itemize}
-  \item {\bf Function with variables as input argument} ({\sf fdefn$_1$)} -
-To type infer a function with variable arguments, the variables of the arguments are added to the context and in this enhanced context the term on the right hand side of the function defintion is type inferred.The input type of the function is the type of the input arguments (variables in this case) and the output type is the type of the term.   
-
-  \item {\bf Function with constructor patterns as input arguments} ({\sf fdefn$_2$)} - Although a function can have constructor patterns of more than one data type as input, we will limit ourselves to just one for the sake of succintness. The given scheme can easily be extrapolated for the case when the function take n constructor patterns as input. The input type of the function is the data type of the constructors of constructor pattern and the output type of the function is the type of the terms on the right hand side of the constructor. A well typed function defintion will have the terms corresponding to all the branches of the same type. 
-\end {itemize} 
-
-~~\\~~\\
-\begin{mdframed} [style=MyFrame,userdefinedwidth=18cm,align=center,
-                  frametitle=Typing rule for function defns with variable patterns,frametitlerule=true,
-                  frametitlerulewidth = 1pt
-                 ]
-~~\\~~\\
-\infer [\rm fdefn_1]
-  {
-    \Gvdash
-    \fun
-      {
-        \begin{array}[c]{lcl}
-          x_1,\ldots,x_m & \to & t
-        \end{array}          
-      }:T 
-    ~~~ \bigg\langle \exists ~ I_1,\ldots,I_m~.~  
-                \begin
-                  {array}[c]{l} 
-                       T = (I_1,\ldots,I_m)~ \to ~ O,\\
-                        E 
-                \end {array}       
-        \bigg\rangle 
-  }
-  { 
-   \Gamma,x_1:I_1,~\ldots,~x_m:I_m \vdash t : O ~~ \langle E \rangle
-  }~~\\~~\\
-\end{mdframed}
-~~\\~~\\
-\end {document}
-
+\end{document}

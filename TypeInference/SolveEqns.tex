@@ -1,0 +1,174 @@
+\documentclass[11pt]{article}
+
+\title{Type Inferencing in MPL}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Special symbol macros ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{document}
+
+\maketitle
+\section {Solving Type Equations}
+Solving type equations involves two main steps.
+\begin{itemize}
+    \item First the equations are transformed into packages.This has been described in section \ref{GenPack} on page \pageref{GenPack}.
+    \item The generated packages are reduced to their normal form.This has been described in section \ref{RedPack} on page \pageref{RedPack}. 
+\end{itemize}
+ There are two main advantages of solving the type equations by converting them to packages.
+\begin{itemize} 
+      \item Packages keep intact the ``hierarchical structure of the type inference tree for a construct'' and use it when solving the type equations. This results in faster solution of the type equations. 
+      \item Packages keep the type errors localised during the type equation solving process leading to error messages with better location information.
+  \end{itemize}  
+For the type equation of a given construct, the normal form of the corresponding packages contains the typing information of the construct.
+The next few sections will be description of the steps required in solving type equations.
+~~\\~~\\
+A {\bf package} is a four tuple of a pair of list of free variables, a list of existentially quantified variables, a list of universally quantified variables and a list of substitutions.
+~~\\~~\\
+ Substitutions are entities of the form ``{\bf Var = Type expression}''. {\bf Var} stands for type variables. {\bf Type Expressions} are the types built inductively from the atomic types using the type and protocol formation rules.
+~~\\~~\\
+Free variables are type variables used in the body of the package or the substitution list (the fourth argument of the package) from which the universally and existentially quantified variables have been removed. For the ease of reducing the packages, the free variables have been represented as a pair. The first argument of the pair is a list of all the variables on the left side of the substitution in the substitution list. The second argument of the pair the concatenation free variables found in every type expression in the substitution list.
+~~\\~~\\ 
+For a simple equation like $X ~ = ~ Y \times Z$ where X, Y and Z are free variables, the package structure is given below.
+\begin {align*}
+ \bigg(([X],[Y,Z]),[~],[~],\Big[X = Y \times Z \Big]\bigg)
+\end {align*}
+Consider the below equation with existentialy quantified variables X and Y.
+\begin{align*}
+\exists ~ X,Y .
+  \begin{array}[c]{l}
+   Z = (X,Y) \\ 
+   X = Int
+  \end {array} 
+\end {align*}
+The package for the above existential equation is:
+\begin{align*}
+    \bigg(([Z],[~]),[X,Y],[~],\Big[
+                              \begin{array}[c]{l}
+                               ~Z = (X \times Y),\\ 
+                               ~X = Int~   
+                              \end{array}
+                          & \Big]\bigg )
+\end{align*}
+The above generated package for the quantified equation can be reduced to its normal form using the existential variables to guide the reduction process.
+\begin{align*}
+    \bigg(([Z],[~]),[Y],[~],\bigg[
+                              \begin{array}[c]{l}
+                               ~Z = (Int \times Y) 
+                              \end{array}
+                          & \bigg]\bigg )
+\end{align*}
+The {\bf normal form} of a package is defined as the most simplified form of the package where reductions are no longer possible. 
+\subsection {Generating Package from an Equation}\label{GenPack}
+Lets call this function genPack function. 
+\begin{itemize}
+    \item {\bf Input}  - Type Equation 
+    \item {\bf Output} - Reduced Package for the Type Equation 
+\end{itemize}
+\subsubsection {Steps of the function genPack}
+\begin{enumerate}
+     \setlength\itemsep {1em}
+    \item when the equations doesn't have any existentially or universally quantified variables, then put the equation in the body of the package (the fourth argument of the tuple) and free variables in the first argument. The second and the third arguments that contain the universally and existentially quantified variables are empty. For example - For an equation 
+    $X ~ = ~ Y~ \times ~Z $ which doesn't have any quantified variables, the package generated will be the following. 
+            \begin{align*}
+                  (([X],[Y \times Z]),[~],[~],[(X = (Y \times Z))]
+            \end{align*}
+    \item When the input to the function is a type equation with quantified variables like below.
+    \begin{align*}
+       \forall~P,Q ~\exists~X,Y~.~Equations     
+    \end{align*} 
+    \begin{enumerate}
+         \setlength\itemsep {1em}
+        \item {\bf Generation of Inner Packages} - Apply the generate package function recursively to the $Equations$ in the body of the outer quantified equation to come up with a list of packages.
+        
+        \item {\bf Reduction of Inner Packages to Normal Forms} -
+         Reduce the packages to their normal form in the current context (with the given list of existential and universal variables). The normal form of a package means that the inner packages can be simplified further. This is explained in details in the section {\bf ``Reduction of Packages in a Type Equation.''} The reduction process may consume some of the existential and universal variables of the outer equation. Lets call the remaining list of quantified variables as {\bf remaining universal and existential variables}.
+        
+        \item {\bf Getting a Final Package } - Once the inner packages have been reduced to their normal form, they are combined together to come up with the final package for the current type equation. This is achieved in the below steps.
+        \begin{enumerate}
+          \setlength\itemsep{1em}
+         \item To get the list of existential variables of the final package, the existential variables of the inner packages are concatenated together which in turn is concatenated with the remaining existential variable of the outer equation from the reduction step. Similarly, the list of the universal variables for the final package
+         are obtained.  
+         \item The substitution list of the inner packages are concatenated to get the substitution list of the final package.Finally the pair of free variables are obtained using the substitution list and the pair of lists of quantified variables. 
+        \end {enumerate}
+    \end{enumerate}
+\end{enumerate}
+
+\subsection {Reducing a Package to its Normal Form in a Type Equation} \label{RedPack}
+\begin{itemize}
+    \item {\bf Input } - The existential and universal quantifier variable of the outer type equation and a list of packages corresponding to the inner type equations.   
+    \item {\bf Output} - A list of packages reduced to their normal form, remaining lists of existentially and universally quantified variables.Some of the afore mentioned variables are used in the reduction process.
+\end{itemize}
+\subsubsection {Steps in the Reduction Algorithm}
+\begin{enumerate}
+    \item for all the existential variables do 
+    \begin{enumerate}
+    \setlength\itemsep {1em}
+        \item Lookup for a substitution for the existentially quantified variable.
+        \item If the substitution exists in a particular package, remove this substitution from the substitution list of the package.
+        \item Remove the existential variable from the existential variable from the existential variable list of the outer type equation.
+        \item Linearize all the inner packages with this substitution say (a,expr).
+        \item Linearization means one of the two things.
+        \begin{enumerate}
+            \item If there is an equation in the substitution list of a package, say (b,bexpr) and a is present in the body of bexpr, then replace a with aexpr inside the body of bexpr. 
+            \item If there is an equation of the form (a,someexpr) then aexpr is unified with someexpr and the result of unification is added to the substitution list of the package and the package (a,someexpr) is removed.
+            ~~\\~~\\
+            The step leads to removal of some/all of the existentially quantified variable along with modified packages in the package list.
+        \end{enumerate}
+    \end{enumerate}
+
+    \item For all the variables in the universal variable list do 
+        \begin{enumerate}
+            \setlength\itemsep {1em}
+            \item Try finding a substitution for the universally quantified variable.
+            \item If there is no substitution for the variable then get rid of the variables from the universal quantifier list of the outer equation.
+            \item If there is a substitution for a variable say a, then check if there is a trivial substitution for a, i.e a substitution of the form a = a. A substitution with any other thing on the right hand
+            side of the substitution is called a non trivial substitution.
+            
+            \item If there exists a trivial substitution , then get rid of the substitution from the substitution list of the package and the universally quantified variable from the corresponding list of the outer equation.
+            \item If there is a non-trivial substitution, return an error.
+        \end{enumerate}
+    \item The normal form package of the outer most equation shouldn't have any universal variables, may or may not have existential variables and will have some substitutions in the substitution list. For a simple construct, the number will be 1. However, if we are type inferring constructs like mutually recursive functions, the number of substitutions will be equal to the number of constructs we are type inferring.
+    \end{enumerate}
+
+\end {document}
