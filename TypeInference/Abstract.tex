@@ -1,0 +1,55 @@
+\documentclass[11pt]{article}
+
+\title{Introduction to MPL Programming Language}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage[dvips]{graphics}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = 2cm
+    rightmargin = 2cm,
+    frametitlealignment = \center
+    }
+
+\mdfdefinestyle{MyFrameSp}{%
+    linecolor=black,
+    linewidth=1pt
+    innertopmargin=\baselineskip,
+    innerbottommargin=\baselineskip,
+    leftmargin  = .5cm
+    rightmargin = .5cm,
+    frametitlealignment = \center
+    }
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Special symbol macros ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{document}
+
+\maketitle
+
+MPL(Message Passing Language) is a concurrent, functional and strictly typed language with {\em message passing} as the concurrency primitive. Concurrent MPL programs comprise of {\em processes} with {\em channels} connecting them. Processes communicate by passing messages along the channels. MPL brings the convenience of type safety to the concurrent world by typing the channels. This is achieved by associating every channel with a protocol/coprotocol which deteremines permissible actions on a channel. Protocol/Coprotocol can be considered as the data types of the councurrent world. MPL also has a sequential side which resembles a strictly typed functional programming language like Haskell along with the additional facilities of defining and using {\em codata types} and writing disciplined recursive programs using {\em folds} and {\em unfolds}.
+~~\\~~\\
+In the talk, the basic constructs used to develop councurrent programs in MPL will be described with examples that will be run on the MPL's compiler.
+\end{document}

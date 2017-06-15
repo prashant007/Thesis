@@ -21,51 +21,206 @@
 \BeforeBeginEnvironment{tabular}{\begin{center}\small}
 \AfterEndEnvironment{tabular}{\end{center}}
 
-\mdfdefinestyle{MyFrame}{%
-    linecolor=black,
-    linewidth=1pt
-    innertopmargin=\baselineskip,
-    innerbottommargin=\baselineskip,
-    leftmargin  = 2cm
-    rightmargin = 2cm,
-    frametitlealignment = \center
-    }
+\newcommand{\A}{{\ensuremath{\mathbb A}}\xspace}
+\newcommand{\B}{{\ensuremath{\mathbb B}}\xspace}
+\newcommand{\C}{{\ensuremath{\mathbb C}}\xspace}
+\newcommand{\D}{{\ensuremath{\mathbb D}}\xspace}
+\newcommand{\F}{{\ensuremath{\mathbb F}}\xspace}
+\newcommand{\G}{{\ensuremath{\mathbb G}}\xspace}
+\newcommand{\R}{{\ensuremath{\mathbb R}}\xspace}
 
-\mdfdefinestyle{MyFrameSp}{%
-    linecolor=black,
-    linewidth=1pt
-    innertopmargin=\baselineskip,
-    innerbottommargin=\baselineskip,
-    leftmargin  = .5cm
-    rightmargin = .5cm,
-    frametitlealignment = \center
-    }
+\newcommand{\rst}[1]{\overline{#1}\,}
+\newcommand{\Sets}{{\ensuremath{\sf Sets}}\xspace}
+\newcommand{\Cat}{{\ensuremath{\sf Cat}}\xspace}
+
+\input xy
+\xyoption{all}
+\xyoption{2cell}
+\UseAllTwocells
+
+\title{AMPL, an abstract machine for MPL}
+
+%\date{}
+
+\bibliographystyle{plain}
+
+%%%%%%%%% macros defined %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\X}{{\ensuremath{\mathbb X}}\xspace}
+\newcommand{\Y}{{\ensuremath{\mathbb Y}}\xspace}
+\newcommand{\Z}{{\ensuremath{\mathbb Z}}\xspace}
+
+\newcommand{\<}{\langle}
+\renewcommand{\>}{\rangle}
+\newcommand{\lollipop}{\ensuremath{-\!\!\circ}}
+
+\newcommand{\op}{\ensuremath{^{\textnormal{op}}}}
+\renewcommand{\hat}{\widehat}
+\renewcommand{\b}{\bullet}
+\renewcommand{\c}{\circ}
+\newcommand{\ox}{\otimes}         
+\newcommand{\x}{\times}     
+\newcommand{\fold}[1]{\ensuremath{\left\{\!\!\!\;\left| #1 \right|\!\!\!\;\right\} }}  
+\newcommand{\unfold}[1]{\ensuremath{\left(\!\!\!\;\left| #1 \right|\!\!\!\;\right) }}  
+\def\endproof{~\hfill$\Box$\vskip 10pt}
+
+\newtheorem{theorem}{Theorem}[section]    
+\newtheorem{corollary}[theorem]{Corollary}   
+\newtheorem{lemma}[theorem]{Lemma}   
+\newtheorem{remark}[theorem]{Remark}   
+\newtheorem{example}[theorem]{Example}   
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+
+\newcommand{\proof}{\noindent{\sc Proof:}\xspace}
+
+\def\monus{\buildrel\textstyle.\over
+    {\hbox{\vrule height.55ex width0pt
+        \smash{\hbox{\mathsurround=0pt$-$}}}}}
+\def\xybox#1#2{\save [].[#2]!C="xb#1"*[F.]\frm{}\restore}
 
 \begin{document}
 
 \maketitle
 \section {Sequential Abstract Machine for MPL (SAMPL)}
-{\em SAMPL} acts as the target to which the sequntial MPL compiles and is subsequently run. {\em SAMPL} is inspired by {\em modern-SEC Machine}  which in turn was inspired by Landin's SECD machine. However, there are a few differences between {\em SAMPL} and {\em modern-SEC Machine}, the most notable one of which are the following :-
- \begin{itemize}
-   \item {\em SAMPL} is a more sophisticated machine as it has built in {\em data types} and {\em codata types} where as {\em modern-SEC Machine} lacks these constructs.
-   \item {\em modern-SEC Machine} uses {\em strict evaluation} strategy for the execution of programs. In contrast, {\em SAMPL} uses a mixture of two strategies for program reduction, namely {\em lazy evaluation} when handling {\em records} of a {\em codata type} and {\em strict evaluation} strategy when reducing other MPL constructs.
- \end{itemize}
+Sequential MPL code compiles to Sequential AMPL(SAMPL). SAMPL is inspired by {\em modern-SEC machine}. However, {\em modern-SEC} machine doesn't have constructs to which {\em data types} and {\em codata types} can be compiled. SAMPL augments the basic {\em modern-SEC} machine with {\em case} and {\em constructor} constructs to compile data types and  {\em record} and {\em destructor} constructs to compile codata types. SAMPL also adds constructs for basic functions like {\em addition}, {\em multiplication}, {\em equality testing} etc which are built into the language. The {\em SAMPL} constructs are strictly evaluated except the constructs for codata types ({\em record} and {\em destructor}) which are lazily evaluated.
 
- \subsection {Evaluation Strategies}
+\subsection {SAMPL Constructs}
+The table provides a list of {\em SAMPL} commands with their brief description.
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Instruction &Explanation \\ \hline
+~ & ~\\
+${\sf Store}$ &   pushes the top stack element into the environment \\
+${\sf Access}(n)$    &   put $n^{\rm th}$ value in the environment onto the stack. \\ 
+${\sf Ret} $     &       return the top stack value and jump to the continuation below \\ 
+${\sf call}~\<{\tt code}\>$ & jump to the code \\
+ ~ & ~ \\ \hline
+\multicolumn{2}{|l|}{Built in instructions:} \\ \hline
+~ & ~ \\ 
+ ${\sf Const}_T(k)$       &    push the constant $k$ of basic type $T$ on the stack \\
+${\sf Add}$ &             Pop two arguments from the top of the stack and add them \\ 
+${\sf Mul}$ &             Pop two arguments from the top of the stack and mlutiply them \\ 
+${\sf Leq}$  &            Pop two arguments from the top of the stack and compare them \\ ~ & etc. \\ 
+~ & ~\\ \hline
+\multicolumn{2}{|l|}{Data instructions:} \\ \hline
+~ & ~ \\ 
+ ${\sf Cons}(i,n)$       &    push the $i^{\rm th}$ constructor onto the stack with arguments \\
+                                  & the top $n$ elements of the stack, ${\sf Cons}(i,s_1,...,s_n)$ . \\
+ ${\sf Case}[c_1,...,c_n]$ &     when ${\sf Cons}(i,t_1,...,t_n)$  is on the stack remove it and \\
+                                   & push $t_1, ...., t_n$ into the environment and evaluate $c_i$. \\ 
+ ~ & ~ \\ \hline
+ \multicolumn{2}{|l|}{Codata instructions:} \\ \hline
+  ${\sf Rec}[c_1,...,c_n]$      &         create a record on the stack with current environment, \\
+                                            & ${\sf rec}([c_1,...,c_n],e)$  \\
+ ${\sf Dest}(i,n)$ &             destruct a record: choose the $i^{\rm th}$  function closure $(c_i,e)$  \\
+                        &  and run $c_i$ in environment $e$ supplemented with the first $n$ values on the stack. \\
+~ & ~ \\ \hline
+\end{tabular}
+\end{center}
 
+\subsection {Compilation of Sequential MPL Code to SAMPL Commands}
+Sequential MPL code is converted to a list of {\em SAMPL} commands which are then executed on the abstract machine described in table . This conversion from Sequential MPL code to SAMPL commands happens via the {\em Core MPL(CMPL)} stage. The translation scheme has been described below. ${\llbracket \rrbracket}_v$ signifies the compilation of a {\em CMPL} construct to {\em SAMPL} commands in context of an {\em environment} $v$. The environment acts as a repository of variables used in a piece of code being compiled. It is used to replace the variable names in the body of the {\em MPL} construct with a position number to indicate which variable was intended to be used.
 
+  \begin{eqnarray}
+  \llbracket {\sf record} \{ D_1: t_1,...D_n:t_n)\} \rrbracket_v & = &
+  {\sf Rec}[ \llbracket t_1 \rrbracket_v {\sf Ret}, ..., \llbracket t_n \rrbracket_v {\sf Ret} ]\\
+  \llbracket (D_i(x,t_1,...,t_n) \rrbracket_v & = & \llbracket t_n \rrbracket_v ... \llbracket t_1 \rrbracket_v ~\llbracket x \rrbracket_v {\sf Dest}(i,n) \\
+  \llbracket {\sf Cons}_i(t_1,..,t_n) \rrbracket_v & = & \llbracket t_n \rrbracket_v ... \llbracket t_1 \rrbracket_v ~ {\sf Cons}(i,n) \\
+  \llbracket {\sf case} ~ t~ \{ {\sf Cons_i} ~x_{1_i},...,x_{n_i} \mapsto t_i \}_{i \in [1,m]~} \rrbracket_v & = & \llbracket t \rrbracket_v {\sf Case} [\llbracket t_i \rrbracket_{x_1,...,x_{n_i},v} ~{\sf Ret}]_{i \in [1,m]~} \\
+  \llbracket x \rrbracket_v & = & {\sf Access}(n) ~~~~\mbox{where $n={\sf index}~v~x$} \\
+   \llbracket a~{\rm op}~b \rrbracket_v & = & \llbracket b \rrbracket_v ~ \llbracket a \rrbracket_v {\sf Op} \\
+    \llbracket k\rrbracket_v & = & {\sf Const}_T(k) 
+  \end{eqnarray}
+{\em Equation 1} describes the compilation scheme for the {\sf record} construct. $D_i$ as the $i^{th}$ destructor and $t_i$ is the corresponding term for that destructor.
+~~\\~~\\
+{\em Equation 2} describes the compilation scheme for a {\sf destructor} construct represented by $D_i$. The first argument to the $D_i$ here is the record to be destructed and the subsequent arguments are the arguments of $D_i$. 
 ~~\\~~\\ 
-{\em SAMPL} is described in terms of a state transition table which guides an  
+{\em Equation 3} describes the compilation of {\sf constructor} represented by $Cons_i$. The terms $t_1,\ldots,t_n$ which are the arguments of the constructors are recursively compiled and concatenated in the order opposite to which they occur. The constructor name is gotten rid in the compilation process and is instead represented by a pair of constructor number and the number of arguments that the constructor takes.
+~~\\~~\\
+{\em Equation 4} describes the compilation of a {\sf case} construct. A few things worth noting in the compilation of {\sf case} constructs are as following:
+\begin {itemize}
+\item The term $t_i$ corresponding to the $Cons_i$ is compiled in the context enhanced with the arguments of $Cons_i$.
+\item $Ret$ should be the last command in the compiled code corresponding to any constructor $Cons_i$.
+\item Before the compilation of the {\sf Case} construct starts, it should be ensured that the constructors of the data type are arranged in the same order as they have been defined.
+\end{itemize}
+{\em Equation 5} describes the compilation of a variable $x$. The variable is looked up in the context $v$. The depth of the variable in the context is the argument to the $Access$ command.
+~~\\~~\\
+{\em Equation 6} describes the compilation of infix functions. These functions are converted to their {\em postfix} function with their arguments recursively compiled.
+\subsection {Transition Table for SAMPL}
+
+\begin{table}
+\begin{center}
+    \begin{tabular}{|l|l|l||l|l|l|}
+    \hline 
+      \multicolumn{3}{|c||}{Before} 
+     & \multicolumn{3}{c|}{After} \\ \hline    
+   Code   & Env  & Stack      
+                      &Code   & Env  & Stack     \\ \hline
+         ${\sf Store};c$   &$ e$    & $v:s$          
+                     & $c$           & $v:e$    & $s$     \\ \hline   
+        ${\sf Access}(n);c$   &$ e$    & $s$          
+                     & $c$           & $e$    & $e(n):s$     \\ \hline    
+      ${\sf Call}(c):c'$         & $e$    & $s$  
+                     & $c$          & $e$   & ${\sf clos}(c',e):s$        \\ \hline              
+    ${\sf Ret}:c$         & $e$    & $v:{\sf clos}(c',e'):s$  
+                     & $c'$          & $e'$   & $v:s$        \\ \hline \hline  
+         ${\sf Cons}(i,n):c $ & $e$    & $v_1:...,v_n:s$      
+                     & $c$           &$ e$    & ${\sf cons}(i,[v_1,..,v_n]):s$    \\ \hline      
+          ${\sf Case}(c_1,...,c_n):c $ & $e$ & ${\sf Cons}(i,[v_1,...,v_n]):s$ 
+                     & $c_i$ & $v_1:..:v_n:e$ & ${\sf clo}(c,e):s$ \\ \hline \hline
+     ${\sf Rec}(c_1,..,c_n):c$      & $e$   & $s$         
+                     & $c$           & $e$    & ${\sf rec}([c_1,...,c_n],e):s$    \\ \hline
+     ${\sf Dest}(i,n):c$         & $e$    & ${\sf rec}([c_1,..,c_n],e'):v_n:..:v_1:s$ 
+                     & $ c_i$          & $v_1:..:v_n:e'$  & ${\sf clo}(c,e):s$      \\ \hline \hline
+     ${\sf Const}_T(k):c $ & $e$    & $s$      
+                     & $c$           &$ e$    & ${\sf const}_T(k):s$    \\ \hline      
+     ${\sf Add}:c$         & $e$    & $n:m:s$      
+                     & $c $          & $e$    & $(n+m):s$    \\ \hline                  
+     ${\sf Mul}:c$         & $e$    & $n:m:s$      
+                     & $c $          & $e$    & $(n*m):s$    \\ \hline 
+     ${\sf Leq}:c$         & $e$    & $n:m:s$      
+                     & $c $          & $e$    & $(n \leq m):s$    \\ \hline  
+   \end{tabular}
+\caption{Machine Transitions for the SAMPL}
+\label{TranTable}
+\end{center}
+\end{table}
+
+
+Once {\bf Sequential MPL} has been compiled to SAMPL code, the code can then be executed on the abstract machine. The {\em code} is represented as a list of SAMPL commands. Two other structures namely {\em environment} and {\em stack} need to be introduced in order to discuss the working of the machine. Both {\em environment and stack} are {\em LIFO} data structures. In our implementation they have been implemneted using {\em lists}. 
+~~\\~~\\
+{\em Environment} keeps track of what variables should or shouldn't be visible in the code at a given point and is thus a transient data structure meaning that it changes as one traverses through the code. {\em Stack} acts as storage for the intermediate values and the final result during the execution of the code. 
 ~~\\~~\\ 
-Recall that AMPL is represented as a four tuple $\{S,T,E,C\}$ of {\em Stack}, {\em Translation}, {\em Environment} and {\em Code}. However, {\em Translation} can be removed from the tuple while discussing {\em SAMPL}. There 
+The state of SAMPL at any given time can be described as the triple of the {\em compiled SAMPL code, environment and stack} represented as $(C,E,S)$. Excecution of SAMPL code means starting with a initial state, changing states recursively based on the transition table for SAMPL described in Table \ref {TranTable} until a final state has been reached. The final state contains the result of the computation. The selection of transition at any step of code execution is done by {\bf pattern matching} the machine state against the transition table. Thus, the given description of the SAMPL is very easily implementable in Haksell using its pattern matching feature.
+~~\\
+\begin{center}
+Initial State : $(C,~\lbrack~\rbrack,~\lbrack~\rbrack)$
+\end{center}
+~~\\
+The initial state of the machine is formed by putting the compiled code as the first argument of the triple and intialising the {\em enviornment} and {\em stack} as empty lists.
+~~\\
+\begin{center}
+Final State : $(\lbrack~\rbrack,~\lbrack~\rbrack,~S)$
+~~\\
+\end{center}
+The final state is reached the code list and the environment is empty. The top of the stack contains the output of the code.
+~~\\~~\\
+In Table \ref {TranTable}, $ {\sf clos}(c,e) $ denotes closure of code $c$ with environment $e$ and $e(n)$ is the $n^{\rm th}$-element of the environment.
 
-
-
-The major differences between {\em modern-SECD Machine} and {\em SAMPL} is are the following :-
-
+\section {Concurrent Abstract Machine for MPL (CAMPL)}
+CAMPL is the part of AMPL to which the concurrent MPL code compiles to. The design of CAMPL is one of the most important contributions of this thesis.
+\subsection {CAMPL Commands}
+In Table the CAMPL commands have been described. There is one CAMPL construct corresponding to every MPL construct. The concurrent MPL constructs have already been described in the first chapter of the thesis. The high level description of the CAMPL commands is the same as their corresponding CAMPL construct but in the below description we will mainly focus on the low level details of the CAMPL commands.
+\subsection {CAMPL Components}
+CAMPL consists of 2 main components:
 \begin{itemize}
-   \item {\em modern-SEC Machine} uses De-Bruijn's indexes to lookup values in an environment. However, 
-   \item 
- \end{itemize} 
-
+    \item {\bf Channel Mananger}, $\cal C$
+    \item {\bf Process Manager}, $\cal P$
+\end{itemize}
+\subsubsection {Channel Mananger}
+Channel Manager, $\cal C$ is a set of pairs of channels and their queues. It is represented as  ${\cal C}\{ (\alpha,q' \mid q) \}$ which indicates that a channel $\alpha$ has the communication queue $q' \mid q$ associated with it. A communication queue has two parts $q'$, the output polarity queue and q, the input polarity queue. If a value $x$ is being put on a channel, it will be added to the front of the output queue, represented as $x:q'$. If a channel $\alpha$ is expecting a value $y$, then $y$ is put at the back of the input queue represented as $q:y$. It is the first element of the output queue and last element of the input queue (represented as $x$ and $y$ in the representation $x:q' \mid q:y$) which are the subject to communication actions described in section. 
+\subsubsection {Process Mananger}
 \end {document}
+
