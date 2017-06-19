@@ -1,12 +1,28 @@
 \documentclass[11pt]{article}
 
-\title{Compilation of Pattern Matching}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{proof}
+\usepackage {alltt}
+
+\usepackage{graphicx} % Allows including images
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+\usepackage{listings}
+\usepackage[export]{adjustbox}
+\usepackage{verbatim}
+\tikzset
+  {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
+
+
 \usepackage{amsmath }
 \usepackage{framed}
 \usepackage{proof}
 \usepackage{enumerate,xspace,stmaryrd}
 \usepackage{amsmath,amssymb,latexsym}
-\usepackage[dvips]{graphics}
 \usepackage{textcomp,xspace}
 \usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
 \usepackage{euscript}  %%Euler Script font
@@ -38,9 +54,7 @@
 \xyoption{2cell}
 \UseAllTwocells
 
-\title{AMPL, an abstract machine for MPL}
-
-%\date{}
+\title{Abstract machine for MPL (AMPL)}
 
 \bibliographystyle{plain}
 
@@ -82,10 +96,58 @@
 \begin{document}
 
 \maketitle
+\section {Abstract Machine for MPL (AMPL)}
+\tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
+                     minimum height=1.8cm,text centered, draw=black]
+\tikzstyle{arrow} = [very thick,->,>=stealth]
+In the previous chapters the different stages of compilation of MPL programs (listed in Figure in \ref {fig:CSAM}) have been described. In this chapter, the last stage of compilation, namely running MPL programs on MPL's abstract machine (called AMPL) is discussed.
+~~\\
+\begin{figure}[h!]
+\begin {center}
+\begin{tikzpicture}[scale = 1.5,every node/.style={very thick},node distance=2cm]
+ \node (LE) [stage] {{\sf \small Lexing}};
+ \node (PA) [stage,right of=LE,xshift=2.2cm] {{\sf \small Parsing}};
+ \node (TC) [stage,right of=PA,xshift=2.2cm,text width = 1.8cm] {{\sf \small Type Inferencing}};
+ \node (CP) [stage,below of=TC,yshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Compiling Pattern Matching}};
+ \node (LL) [stage,left of=CP,xshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Lambda Lifting}};
+ \node (AM) [stage,left of=LL,xshift=-2.2cm,text width = 1.8cm,fill=gray!30] 
+            {{\sf \small Running programs on AMPL}};
+ \draw [arrow] (LE) -- (PA);
+ \draw [arrow] (PA) -- (TC);
+ \draw [arrow] (TC) -- (CP);
+ \draw [arrow] (CP) -- (LL);
+ \draw [arrow] (LL) -- (AM);
+\end{tikzpicture}
+\caption{Compilation Stages} \label{fig:CSAM}
+\end{center}
+\end{figure}
+~~\\
+
+\subsection {Introduction to Abstract Machines}
+Abstract machines are useful tools when developing a programming language because they omit the many details of real machines and thus bridge the gap between the programming language and the physical machine. An added advantage of using an abstract machine is the ease of porting the language to different hardwares. Using an abstract machine one essentially reduces the problem of porting the programming language to the problem of porting the abstract machines. This is an easier task as the abstract machines are simpler and smaller than the programming language. This is the compilation philosophy that the programming language {\bf Java} uses with its abstract machine {\bf JVM}. Some examples of famous {\em abstract machines} are as follows:
+\begin{itemize} 
+  \item Landin's SECD Machine
+  \item Modern-SEC Machine
+  \item Categorial Abstract Machine (CAM)
+  \item Krivine's Machine
+  \item Three Instruction Machine (TIM)
+  \item Warren's Abstract Machine (WAM)
+  \item Java Virual Machine (JVM)
+\end {itemize}
+
+\subsection {Introduction to AMPL}
+AMPL is the runtime of MPL. It is the {\em abstract machine} which runs an MPL program. MPL is conceptually separated into two levels, namely {\bf Sequential MPL} and {\bf Concurrent MPL}. This conceptual separation is also seen in the design of AMPL. AMPL can be thought to consist of two machines:
+\begin{itemize}
+  \item {\bf Sequential AMPL (SAMPL)} which runs {\bf Sequential MPL code}
+  \item {\bf Concurrent AMPL (CAMPL)} which runs {\bf Concurrent MPL code}
+\end {itemize}
+This conceptual separation results in a modular description of AMPL. The advantage of this approach is that the design of either of the AMPL components can be changed without disturbing the other.
 \section {Sequential Abstract Machine for MPL (SAMPL)}
 Sequential MPL code compiles to Sequential AMPL(SAMPL). SAMPL is inspired by {\em modern-SEC machine}. However, {\em modern-SEC} machine doesn't have constructs to which {\em data types} and {\em codata types} can be compiled. SAMPL augments the basic {\em modern-SEC} machine with {\em case} and {\em constructor} constructs to compile data types and  {\em record} and {\em destructor} constructs to compile codata types. SAMPL also adds constructs for basic functions like {\em addition}, {\em multiplication}, {\em equality testing} etc which are built into the language. The {\em SAMPL} constructs are strictly evaluated except the constructs for codata types ({\em record} and {\em destructor}) which are lazily evaluated.
 
-\subsection {SAMPL Constructs}
+\subsection {SAMPL Commands}
 The table provides a list of {\em SAMPL} commands with their brief description.
 \begin{center}
 \begin{tabular}{|l|l|}
@@ -209,18 +271,169 @@ The final state is reached the code list and the environment is empty. The top o
 ~~\\~~\\
 In Table \ref {TranTable}, $ {\sf clos}(c,e) $ denotes closure of code $c$ with environment $e$ and $e(n)$ is the $n^{\rm th}$-element of the environment.
 
+
 \section {Concurrent Abstract Machine for MPL (CAMPL)}
-CAMPL is the part of AMPL to which the concurrent MPL code compiles to. The design of CAMPL is one of the most important contributions of this thesis.
-\subsection {CAMPL Commands}
-In Table the CAMPL commands have been described. There is one CAMPL construct corresponding to every MPL construct. The concurrent MPL constructs have already been described in the first chapter of the thesis. The high level description of the CAMPL commands is the same as their corresponding CAMPL construct but in the below description we will mainly focus on the low level details of the CAMPL commands.
-\subsection {CAMPL Components}
+Concurrent Abstract Machine for MPL (CAMPL) is the machine on which the concurrent MPL code is run. Concurrent MPL code comprises of processes. The state of a process is represented as a four tuple of {\em Stack, Translation, Environment and Code} $(S,t,E,C)$. {\em Stack, Environment and Code} were also used to represent the state of {\em Sequential MPL} programs and have the same meaning here. 
+\begin{itemize}
+  \item {\em Stack} holds the intermediate value and the final result when executing a process.
+  \item {\em Environment} is used to determined which variables are visible at a given point of the concurrent program.
+  \item {\em Code} is the list of Concurrent AMPL commands corresponding to the MPL program.
+\end{itemize}
+Translation is an additonal structure used in describing the state of a {\em Concurrent MPL} program. This additonal structure is required because concurrent MPL programs also have channels which the sequential MPL programs don't have.{\em Translation} converts the local channel name into global channel names. This is required because a channel connecting two processes may be named differently inside the individual processes. In order to ensure that the two channels are referring to the same channel, there needs to be a mapping/table that translates the local channel name to global channel names.
+\begin{center}
+Initial State : $(~\lbrack~\rbrack,t,\lbrack~\rbrack,C)$
+\end{center}
+~~\\
+The initial state of CAMPL is formed by loading the compiled code corresponding to Concurrent MPL program (processes) as the fourth argument of the tuple, the {\em translation} of channels corresponding to a process as the second argument, and intialising the {\em enviornment} and {\em stack} which are the first and the third arguments respectively, as empty lists.
+~~\\
+\begin{center}
+Final State : $(S,\lbrack~\rbrack,\lbrack~\rbrack,\lbrack~\rbrack)$
+\end{center}
+~~\\
+The final state is reached when the code list, the environment and the translation is empty. The top of the stack contains the output of the code.
+~~\\~~\\
 CAMPL consists of 2 main components:
 \begin{itemize}
     \item {\bf Channel Mananger}, $\cal C$
     \item {\bf Process Manager}, $\cal P$
 \end{itemize}
-\subsubsection {Channel Mananger}
-Channel Manager, $\cal C$ is a set of pairs of channels and their queues. It is represented as  ${\cal C}\{ (\alpha,q' \mid q) \}$ which indicates that a channel $\alpha$ has the communication queue $q' \mid q$ associated with it. A communication queue has two parts $q'$, the output polarity queue and q, the input polarity queue. If a value $x$ is being put on a channel, it will be added to the front of the output queue, represented as $x:q'$. If a channel $\alpha$ is expecting a value $y$, then $y$ is put at the back of the input queue represented as $q:y$. It is the first element of the output queue and last element of the input queue (represented as $x$ and $y$ in the representation $x:q' \mid q:y$) which are the subject to communication actions described in section. 
-\subsubsection {Process Mananger}
+\subsection {Channel Mananger}
+Channel Manager, $\cal C$ is a set of pairs of channels and their queues. It is represented as  ${\cal C}\{ (\alpha,q' \mid q) \}$ which indicates that a channel $\alpha$ has the communication queue $q' \mid q$ associated with it. A communication queue has two parts $q'$, the output polarity queue and q, the input polarity queue. If a value $x$ is being put on a channel, it will be added to the front of the output queue, represented as $x:q'$. If a channel $\alpha$ is expecting a value $y$, then $y$ is put at the back of the input queue represented as $q:y$. It is the first element of the output queue and last element of the input queue (represented as $x$ and $y$ in the representation $x:q' \mid q:y$) which are the subject to communication actions described in section \ref {ChanManAct}. 
+\subsection {Process Mananger}
+{\bf Process Manager} is a set of processes. {\bf Process Manager} is represented as $\cal P$ $\{(S,t,E,C)\}$ signifying that it has selected one process that will be advanced by one execution step. The {\bf Process Manager} selects this process non-determenenstically. In practise one may want to execute this non-determenenstically selected process not just by one step but for mutliple steps or until it has a concurrent action before interrupting it.
+
+\subsection {Interaction between Process Manager and Channel Manager}
+The interaction between {\bf Process Manager} and {\bf Channel Manager} can be understood with the help of below example:
+~~\\~~\\
+Suppose there are two MPL processes connected by a channel such that the first process {\bf P1} puts a value on the channel and the second process {\bf P2} receives the value on the channel. Since MPL assumes no fixed order of execution of processes, the process receiving the value on the channel maybe executed before the process putting the value on the channel. When process {\bf P2} is executed before {\bf P1}, the {\bf Channel Manager} suspends the process {\bf P2} and attaches it to one of the queues (say output queue) of the channel, ch. When process {\bf P1} is scheduled and executed, the value is obtained on the channel and put on its input queue. Once {\bf Channel Manager} sees the configuration where a supsended process is attached to one queue of the channel and a value is present on the other queue of the channel, it reactivates the suspended process and puts it in the set of active processes. The {\bf Process Manager} can then schedule this active process for execution.
+~~\\~~\\ 
+Here the intreaction between the {\bf Process Manager} and {\bf Channel Manager} has been explained in terms of just the {\bf get-put} command pair. However, similar interaction between the two components of CAMPL takes places for {\bf split-fork}, {\bf hput-hcase} and {\bf close-halt} pairs.
+\subsection {Concurrent Commands}
+In order to understand the working of CAMPL one starts with a look at the CAMPL commands. Corresponding to every concurrent MPL construct, there is one CAMPL command. Table \ref {concurrent-commands} lists the concurrent commands with a brief description of each. The execution of CAMPL commands have been studied as the actions of the two components of the CAMPL, namely {\bf Process Manager Actions} (see section \ref {process-manager} ) and  {\bf Channel Manager Actions} (see section  \ref {channel-manager}).   
+
+\begin{table}
+\begin{center}
+
+\begin{tabular}{l||l}
+${\sf get}~\alpha$; C & get a value on channel $\alpha$ \\
+${\sf put}~\alpha$; C & put a value on channel $\alpha$ \\ \hline
+${\sf split}~\alpha~{\sf into}~(\alpha_1,\alpha_2); C$ & split channel $\alpha$ into two (new) channels \\
+$\!\!\!\begin{array}{ll}{\sf fork} & \alpha~{\sf as} \\
+                           & \alpha_1~{\sf with}~\Gamma_1. C_1 \\
+                           & \alpha_2~{\sf with}~\Gamma_2. C_2  \end{array}$ & forking on a channel into two distinct processes \\ \hline
+
+${\sf hput}~\alpha~n; C$ & put a ``handle'' on channel $\alpha$ \\
+${\sf hcase} \{ C_1,..,C_n\}$ & the cases on receiving a ``handle'' \\ \hline 
+
+${\sf close}~ \alpha; C$ & closing a channel \\
+${\sf halt}~\alpha$ & halting process attached to a single channel \\ \hline
+
+$\!\!\!\begin{array}{ll}{\sf plug} & [\alpha_1,...,\alpha_n] \\
+                           & \Gamma_1. C_1 \\
+                           & \Gamma_2. C_2  \end{array}$ & two processes to communicate on $n$ channels \\ \hline 
+${\sf run}~t~\< {\tt process} \>$ & runs a process with local channel to caller channel translation $t$ \\ \hline 
+
+
+${\sf id}~\alpha = \beta$ & identifying channels.
+\end{tabular}
+\caption{Basic concurrent commands}
+\label{concurrent-commands}
+\end{center}
+\end{table}
+
+\subsubsection{Process Manager's Actions}{\label{process-manager}}
+This section defines one execution step corresponding to the various CAMPL commands. When a command executes it not only changes the state of the running process shown by ${\cal P}\{ (s,t,e,c)\}$ but may also change the state of the queues associated with a channel. Hence, the {\bf Transtion Table/Process Execution Steps} for CAMPL (described in Table \ref {process-actions}) have columns for both {\bf Process Manager} and {\bf Channel Manager} in the {\em before} and {\em after} column.
+An explanation of the {\bf Process Manager's} actions corresponding to the various CAMPL commands has been provided below:
+\begin{itemize}
+\item {\bf Get/Put:} These are the two basic communication commands. ${\sf put}$ transmits a value on a communication channel and ${\sf get}$ receives a value on a communication channel.  To ${\sf put}$ a value on a channel one simply 
+places the value on the input queue for that channel. To ${\sf get}$ a value the process suspends itself on the communication channel with the demand for a value.   When the value appears (is put) on the channel the communication manager  
+passes the value and enables the process waiting to get the value.
+
+\item {\bf Split}: The ${\sf split}$ instruction splits the channel $\alpha$ into two channels ($\alpha_1$ and $\alpha_2$).  One therefore adds to the appropriate queue notification of the two ``global'' channels into which the channels are split. This means one must choose two new channel names (here $\beta_1$ and $\beta_2$), and must remember the translation from the local channel names, $t[\beta_1/\alpha_1,\beta_2/\alpha_2]$. Once {\sf split} is done, the machine continues with the execution of the remaining code.    
+
+\item {\bf Fork}: {\sf Fork} command is dual to the {\sf split} command is the ${\sf fork}$ command.  This command creates two processes which are supposed to communicate on the new channels assigned by a  split command. However, the splitting may not have happened when the fork command is executed. Thus, on a fork command the process suspends itself and attaches itself to the channel which is to be split. The process does not fork, however 
+until the corresponding channel action of splitting is performed (as a communication action)  ... and at that stage the translations for the local channel names to global names are adjusted and the forked processes are 
+enabled (i.e. added into the process manager).
+
+\item {\bf Plug}: The ${\sf plug}$ command allows two processes to communicate along certain of their channels. A plug command is a command in a process which has certain channels connecting it to the outside world.  As in a fork command 
+these channels must be divided amongst the two process being plugged together: in addition, new global communication channels must be assigned to the channels along which they wish to communicate. After a plug command both 
+processes are enabled (i.e. added into the process manager).
+
+\item {\bf Handle}: The ${\sf hput}$ command, which sends a ``handle'' -- which is a protocol constructor -- is matched by a listening process which will react according to which handle is received by an ${\sf hcase}$ command.  These commands behave 
+somewhat like a ``put''  and ``get'', except that for the latter one chooses the code which is to be run based on the handle received rather than simply using the value in the subsequent code.
+
+\item {\bf Call}: This ``jumps'' to some code for a predefined process.  The only subtlety in the ${\sf call}$ command is that one must start by setting up the translation of the local channels of the predefined process into global channel names.
+
+\item {\bf Close/Halt}: Closing a channel, ${\sf close}~\alpha$, causes the channel to be removed.  Corresponding to closing a channel is the ${\sf halt}$ command.  Only when all other channels of a process have been closed can a process call a ${\sf halt} ~\alpha$ on the one remaining channel.
+
+\item {\bf Id~$\alpha := \beta$}: This provides an identity map between two channels.  It alters the translation of the process by defining the translation of $\alpha$ to be the same as the translation of $\beta$.   This command is used, in particular, when ``bending'' wires to simulate the negation of linear logic.
+\end {itemize}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|l|l||l|l|} \hline
+${\cal C}\{ (t(\alpha), q'\mid q) \} $ & ${\cal P}\{ (s,t,e,{\sf get}~\alpha;c) \}$ 
+   & ${\cal C}\{ (t(\alpha),q' \mid q\!\!:\!\!{\sf g}(s,t,e,c)) \}$ & ${\cal P}\{ \}$ \\ \hline
+${\cal C}\{ (t(\alpha),q' \mid q)\}$ & ${\cal P}\{ (v\!\!:\!\!s,t,e,{\sf put}~\alpha;c) \}$ & 
+${\cal C}\{ (t(\alpha),q' \mid q\!\!:\!\!v)\} $ & ${\cal P}\{ (s,t,e,c) \}$ \\ \hline
+${\cal C}\{ (t(\alpha), q' \mid q) \}$ & ${\cal P}\{ ([],t,e,\!\!\!\begin{array}[c]{r}{\sf split}~\alpha~{\sf into}\\ ~(\alpha_1,\alpha_2); c \end{array}\!\!\!) \} $ &
+         ${\cal C}\left\{ \!\!\!\begin{array}[c]{l} \!\!\left(\!\!\!\begin{array}[c]{l} t(\alpha), \\ q' \mid q\!\!:\!\! \< \beta_1,\beta_2 \>\end{array} \!\!\!\right) \!\!\\ (\beta_1,\varepsilon) \\ (\beta_2,\varepsilon) \end{array} \!\!\!\!\right\}$ & ${\cal P}\{ ([],t \!\left[ \!\!\!\begin{array}{l} \beta_1/\alpha_1\\ \beta_2/\alpha_2 \end{array} \!\!\!\right]\!,e,c) \}$ \\ \hline
+${\cal C}\{ (t(\alpha),q'\mid q) \}$ & ${\cal P}\{ (s,t,e,{\sf close}~\alpha;c)\} $ & ${\cal C}\{ t(\alpha),q' \mid q\!\!:\!\!{\sf close}) \}$ & ${\cal P}\{ (s,t\backslash\alpha,e)\}$ \\ \hline
+${\cal C}\{ (t(\alpha),q' \mid q) \}$ & ${\cal P}\{ ([],t,e, \!\!\!\!\!\begin{array}[c]{l}{\sf fork} ~ \alpha~{\sf as} \\
+                           ~\alpha_1~{\sf with}~\Gamma_1. c_1 \\
+                           ~\alpha_2~{\sf with}~\Gamma_2. c_2  \end{array}\!\!,[]) \} $ 
+              & ${\cal C}\{\!\! \left(\!\!\!\begin{array}{l} t(\alpha),\\ q'\mid q\!\!:\!\!\left[t,e,\!\!\!\begin{array}[c]{l} \alpha_1/\Gamma_1. c_1 \\ \alpha_2/\Gamma_2. c_2 \end{array} \!\!\!\right] \end{array}\!\!\!\right)\!\!\}$ & ${\cal P}\{\}$ \\ \hline
+${\cal C}\{ \}$ & ${\cal P}\{ ([],t,e, {\sf id}~ \alpha:=\gamma;  c ,[]) \} $ 
+              & ${\cal C}\{ \} $ & ${\cal P}\left\{ \! ( [],t[t(\gamma)/\alpha],e,c) \! \right\}$ \\ \hline
+${\cal C}\{ \}$ & ${\cal P}\{ ([],t,e, \!\!\!\!\!\begin{array}[c]{l}{\sf plug} [\alpha_1,...,\alpha_n]\\
+                           ~~~\Gamma_1. c_1 \\
+                           ~~~\Gamma_2. c_2  \end{array}\!\!,[]) \} $ 
+              & ${\cal C}\{ (\gamma_i,\varepsilon\mid\varepsilon)_{i=1...n}\} $ & ${\cal P}\left\{ \!\!\!\begin{array}[c]{r} ( [],t[\gamma_i/\alpha_i]_{\Gamma_1},e,c_1), \\ ([],t[\gamma_i/\beta_i]_{\Gamma_2},e,c_2) \end{array} \!\!\! \right\}$ \\ \hline
+${\cal C}\{ (t(\alpha),q'\mid q) \}$ & ${\cal P}\{ ([],t,e,{\sf halt}~\alpha)\} $ & ${\cal C}\{ t(\alpha),q' \mid q\!\!:\!\!{\sf halt}) \}$ & ${\cal P}\{ \}$ \\ \hline
+${\cal C}\{\}$ & ${\cal P}\{ (s,t,{\sf run}~t'~c) \}$ & ${\cal C}\{\}$  & ${\cal P}\{ (s,t;t',c) \}$ \\ \hline
+${\cal C}\{ (t(\alpha),q' \mid q)\}$ & ${\cal P}\{ (s,t,e,{\sf hput}~\alpha~n;c) \}$ & 
+${\cal C}\{ (t(\alpha),q' \mid q\!\!:\!\!{\sf h}(n))\} $ & ${\cal P}\{ (s,t,e,c) \}$ \\ \hline
+${\cal C}\{ (t(\beta), q' \mid q) \} $ & ${\cal P}\{ (s,t,e,{\sf hcase} ~\beta~\{ c_i \}) \}$ & ${\cal C}\{ (t(\beta), q' \mid q\!\!:\!\!(s,t,e,{\sf hc}\{ c_i\})) \} $ & ${\cal P}\{ \}$ \\ \hline
+\end{tabular}
+\end{center}
+\caption{Process execution steps ($\alpha$ with input polarity)}
+\label{process-actions}
+\end{table}
+
+\subsubsection{Channel Manager's Actions}{\label{channel-manager}} \label{ChanManAct}
+This section describes how CAMPL deals with the dual command pairs of {\sf get-put}, {\sf hput-hcase}, {\sf split-fork} and {\sf close-halt} when {\sf get} occurs before {\sf put}, 
+{\sf hcase} occurs before {\sf hput}, {\sf fork} occurs before {\sf split}.
+~~\\~~\\
+An explanation of the {\bf Channel Manager's} actions:
+\begin{itemize}
+  \item {\bf Communication of values or a handle}:
+When a value/handle is waiting on a channel and there is a suspended process waiting for the value then one can transmit the value and re-enable the process which was waiting. Row 1 of Table \ref {channel-actions} shows the communication of {\sf values}. Row 2 shows the communication of the {\sf handle} facilitated by the {\bf Channel Manager}.
+
+\item {\bf Split/Fork communication}:
+When a suspended process which wishes to fork is waiting on a channel and the corresponding split has been made on the channel one assigns new global channel names to the channels introduced by the fork and enable the processes which are forked modifying the translations of the processes. Row 3 of Table \ref {channel-actions} shows the ${\sf split-fork}$ communication facilitated by the {\bf Channel Manager}.
+
+\item {\bf Close/Halt communication}:
+A channel can be completely removed from the channel manger only when a ${\sf close}$ command matches a ${\sf halt}$ command. This is shown by the row 4 of Table \ref {channel-actions}.
+
+\end{itemize}
+
+
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|l|l||l|l|} \hline
+${\cal C}\{ (\beta , q\!\!:\!\!v \mid {\sf g}(s,t,e,c,d)) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(v\!\!:\!\! s,t,e,c,d)\}$ \\ \hline
+${\cal C}\{ (t(\beta) , q\!\!:\!\!{\sf h}(i)  \mid (s,t,e,{\sf hc} ~\{ c_j \},d)) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(s,t,e,c_i,d)\}$ \\ \hline
+${\cal C}\{ (\beta, \<\beta_1,\beta_2\> \mid \left[t,e,\!\!\!\begin{array}[c]{l} \alpha_1/\Gamma_1. c_1 \\ \alpha_2/\Gamma_2. c_2 \end{array} \!\!\!\right] \} $ & ${\cal P}$ 
+                     & ${\cal C}\{ \}$ & ${\cal P}\left\{ \!\!\!\begin{array}{r} ([],t_{\Gamma_1}[\beta_1/\alpha_1],e,c_1,[]), \\
+                                              ([],t_{\Gamma_2}[\beta_2/\alpha_2],e,c_2,[]) \end{array} \!\!\!\right\}$ \\ \hline
+${\cal C}\{ (\beta,{\sf close}\mid {\sf halt} ) \}$ & ${\cal P}$ & ${\cal C}\{ \}$ & ${\cal P}$ \\ \hline
+\end{tabular}
+\caption{Channel manager actions}
+\label{channel-actions}
+\end{center}
+\end{table}
+
+
 \end {document}
 
