@@ -126,29 +126,30 @@ In the previous chapters the different stages of compilation of MPL programs (li
 ~~\\
 
 \subsection {Introduction to Abstract Machines}
-Abstract machines are useful tools when developing a programming language because they omit the many details of real machines and thus bridge the gap between the programming language and the physical machine. An added advantage of using an abstract machine is the ease of porting the language to different hardwares. Using an abstract machine one essentially reduces the problem of porting the programming language to the problem of porting the abstract machines. This is an easier task as the abstract machines are simpler and smaller than the programming language. This is the compilation philosophy that the programming language {\bf Java} uses with its abstract machine {\bf JVM}. Some examples of famous {\em abstract machines} are as follows:
+Abstract machines are useful conceptual tools when implementing a programming language because they omit the many details of real machines and thus bridge the gap between the programming language and the physical machine. An added advantage of abstract machines is the ease of porting the language to different platforms. An abstract machine one reduces the problem of porting the programming language to the problem of porting the abstract machine. This is an easy task as the abstract machines are simpler and smaller than the programming language itself. This strategy was used by the programming language Java which used the abstract machine {\bf Java Virutal Machine (JVM)}. Some famous examples of {\em abstract machines} are:
 \begin{itemize} 
-  \item Landin's SECD Machine
-  \item Modern-SEC Machine
-  \item Categorial Abstract Machine (CAM)
-  \item Krivine's Machine
-  \item Three Instruction Machine (TIM)
-  \item Warren's Abstract Machine (WAM)
-  \item Java Virual Machine (JVM)
+  \item Landin's SECD Machine was one of the first abstract machines for functional programming languages specifically designed to evaluate lambda calculus expressions {\bf by value}.
+  \item Modern-SEC Machine is an improved and efficient version of the SECD machine.
+  \item Cardelli's Functional Abstract Machine (FAM) is an extended and optimized SECD machine. It was used in the first native-code implementation of ML.
+  \item Cousineau's Categorial Abstract Machine (CAM). Its instructions correspond to the constructions of a {\em Cartesian Closed Category}: identity, composition, abstraction, application, pairing, and selection. It was the basis for the CAML programming language.
+  \item Three Instruction Machine (TIM) is a simple abstract machine for evaluation of super-combinators.
+  \item Spineless-Tagless G-Machine (STG-Machine) is the abstract machine for Haskell.
+  \item Warren Abstract Machine (WAM) is the abstract machine for Prolog.
 \end {itemize}
 
 \subsection {Introduction to AMPL}
-AMPL is the runtime of MPL. It is the {\em abstract machine} which runs an MPL program. MPL is conceptually separated into two levels, namely {\bf Sequential MPL} and {\bf Concurrent MPL}. This conceptual separation is also seen in the design of AMPL. AMPL can be thought to consist of two machines:
+AMPL is an abstract machine which runs MPL programs. Just as MPL is separated into two levels, {\bf Sequential MPL} and {\bf Concurrent MPL}, so too can AMPL can be thought of as two machine levels:
 \begin{itemize}
   \item {\bf Sequential AMPL (SAMPL)} which runs {\bf Sequential MPL code}
   \item {\bf Concurrent AMPL (CAMPL)} which runs {\bf Concurrent MPL code}
 \end {itemize}
-This conceptual separation results in a modular description of AMPL. The advantage of this approach is that the design of either of the AMPL components can be changed without disturbing the other.
+This conceptual separation means AMPL has a modular description and design. Thus, either of the AMPL components can be modified without disturbing the other.
 \section {Sequential Abstract Machine for MPL (SAMPL)}
-Sequential MPL code compiles to Sequential AMPL(SAMPL). SAMPL is inspired by {\em modern-SEC machine}. However, {\em modern-SEC} machine doesn't have constructs to which {\em data types} and {\em codata types} can be compiled. SAMPL augments the basic {\em modern-SEC} machine with {\em case} and {\em constructor} constructs to compile data types and  {\em record} and {\em destructor} constructs to compile codata types. SAMPL also adds constructs for basic functions like {\em addition}, {\em multiplication}, {\em equality testing} etc which are built into the language. The {\em SAMPL} constructs are strictly evaluated except the constructs for codata types ({\em record} and {\em destructor}) which are lazily evaluated.
+Sequential MPL code compiles to Sequential AMPL( SAMPL). SAMPL is inspired by modern-SEC machine. However, the modern-SEC machine doesn't have explicit commands to which data types and codata types can be compiled. SAMPL augments the basic modern-SEC machine with {\sf case} and {\sf constructor} commands to compile data types and  {\sf record} and {\sf destructor} commands to compile codata types. SAMPL also adds commands for basic functions like addition, multiplication, equality testing etc which are built-in to the language. The SAMPL commands are evaluated {\bf by-value} except for the {\sf record} and {\sf destructor}, the codata type commands, which are lazily evaluated.
 
 \subsection {SAMPL Commands}
-The table provides a list of {\em SAMPL} commands with their brief description.
+Table \ref {SeqCommTable} provides a list of SAMPL commands and a brief description of each command.
+\begin{table}[!h]
 \begin{center}
 \begin{tabular}{|l|l|}
 \hline
@@ -180,14 +181,15 @@ ${\sf Leq}$  &            Pop two arguments from the top of the stack and compar
                         &  and run $c_i$ in environment $e$ supplemented with the first $n$ values on the stack. \\
 ~ & ~ \\ \hline
 \end{tabular}
+\caption{Machine Transitions for the SAMPL}
+\label{SeqCommTable}
 \end{center}
+\end{table}
 
 \subsection {Compilation of Sequential MPL Code to SAMPL Commands}
-Sequential MPL code is converted to a list of {\em SAMPL} commands which are then executed on the abstract machine described in table . This conversion from Sequential MPL code to SAMPL commands happens via the {\em Core MPL(CMPL)} stage. The translation scheme has been described below. ${\llbracket \rrbracket}_v$ signifies the compilation of a {\em CMPL} construct to {\em SAMPL} commands in context of an {\em environment} $v$. The environment acts as a repository of variables used in a piece of code being compiled. It is used to replace the variable names in the body of the {\em MPL} construct with a position number to indicate which variable was intended to be used.
-
-  \begin{eqnarray}
-  \llbracket {\sf record} \{ D_1: t_1,...D_n:t_n)\} \rrbracket_v & = &
-  {\sf Rec}[ \llbracket t_1 \rrbracket_v {\sf Ret}, ..., \llbracket t_n \rrbracket_v {\sf Ret} ]\\
+Sequential MPL code is converted to a list of SAMPL commands which are then executed on the abstract machine described in Table \ref {AMPL:TranSeqTable}. Sequential MPL is translated to SAMPL Code. The translation scheme is described below: 
+ \begin{eqnarray} 
+  \llbracket {\sf record}~\{ {\sf D_i} ~x_{1_i},...,x_{n_i} \mapsto t_i \}_{i \in [1,m]~} \rrbracket_v & = & {\sf Rec}[\llbracket t_i \rrbracket_{x_1,...,x_{n_i},v} ~{\sf Ret}]_{i \in [1,m]~} \\
   \llbracket (D_i(x,t_1,...,t_n) \rrbracket_v & = & \llbracket t_n \rrbracket_v ... \llbracket t_1 \rrbracket_v ~\llbracket x \rrbracket_v {\sf Dest}(i,n) \\
   \llbracket {\sf Cons}_i(t_1,..,t_n) \rrbracket_v & = & \llbracket t_n \rrbracket_v ... \llbracket t_1 \rrbracket_v ~ {\sf Cons}(i,n) \\
   \llbracket {\sf case} ~ t~ \{ {\sf Cons_i} ~x_{1_i},...,x_{n_i} \mapsto t_i \}_{i \in [1,m]~} \rrbracket_v & = & \llbracket t \rrbracket_v {\sf Case} [\llbracket t_i \rrbracket_{x_1,...,x_{n_i},v} ~{\sf Ret}]_{i \in [1,m]~} \\
@@ -195,24 +197,142 @@ Sequential MPL code is converted to a list of {\em SAMPL} commands which are the
    \llbracket a~{\rm op}~b \rrbracket_v & = & \llbracket b \rrbracket_v ~ \llbracket a \rrbracket_v {\sf Op} \\
     \llbracket k\rrbracket_v & = & {\sf Const}_T(k) 
   \end{eqnarray}
-{\em Equation 1} describes the compilation scheme for the {\sf record} construct. $D_i$ as the $i^{th}$ destructor and $t_i$ is the corresponding term for that destructor.
+${\llbracket ~\rrbracket}_v$ signifies the compilation of a {\em CMPL} construct to {\em SAMPL} commands in context of an {\em environment} $v$. The environment acts as a repository of variables used in a piece of code being compiled. It is used to replace a variable name with the relative position in the program body.
 ~~\\~~\\
-{\em Equation 2} describes the compilation scheme for a {\sf destructor} construct represented by $D_i$. The first argument to the $D_i$ here is the record to be destructed and the subsequent arguments are the arguments of $D_i$. 
+A discussion of these compilation steps is:
+~~\\~~\\
+$(1)$ describes the compilation scheme for the {\sf record} construct. {\sf D$_i$} is the $i^{th}$ destructor and {\sf t$_i$} is the corresponding term for that destructor.
+~~\\~~\\
+$(2)$ describes the compilation scheme for a {\sf destructor} construct represented by $D_i$. The first argument to the {\sf D$_i$} here is the record to be destructed and the subsequent arguments are the arguments of {\sf D$_i$}. 
 ~~\\~~\\ 
-{\em Equation 3} describes the compilation of {\sf constructor} represented by $Cons_i$. The terms $t_1,\ldots,t_n$ which are the arguments of the constructors are recursively compiled and concatenated in the order opposite to which they occur. The constructor name is gotten rid in the compilation process and is instead represented by a pair of constructor number and the number of arguments that the constructor takes.
+$(3)$ describes the compilation of {\sf constructor} represented by $Cons_i$. The terms {\sf t$_1,\ldots,$ t$_n$} which are the arguments of the constructors are recursively compiled and concatenated in the order opposite to which they occur. The constructor name is gotten rid in the compilation process and is instead represented by a pair of constructor number and the number of arguments that the constructor takes.
 ~~\\~~\\
-{\em Equation 4} describes the compilation of a {\sf case} construct. A few things worth noting in the compilation of {\sf case} constructs are as following:
+$(4)$ describes the compilation of a {\sf case} construct. A few things worth noting in the compilation of {\sf case} constructs are as following:
 \begin {itemize}
-\item The term $t_i$ corresponding to the $Cons_i$ is compiled in the context enhanced with the arguments of $Cons_i$.
-\item $Ret$ should be the last command in the compiled code corresponding to any constructor $Cons_i$.
+\item The term {\sf t$_i$} corresponding to the {\sf Cons$_i$} is compiled in the context enhanced with the arguments of {\sf Cons$_i$}.
+\item {\sf Ret (return)} should be the last command in the compiled code corresponding to any constructor {\sf Cons$_i$}.
 \item Before the compilation of the {\sf Case} construct starts, it should be ensured that the constructors of the data type are arranged in the same order as they have been defined.
 \end{itemize}
-{\em Equation 5} describes the compilation of a variable $x$. The variable is looked up in the context $v$. The depth of the variable in the context is the argument to the $Access$ command.
+$(5)$ describes the compilation of a {\sf variable x}. The variable is looked up in the context $v$. The depth of the variable in the context is the argument to the {\sf Access} command.
 ~~\\~~\\
-{\em Equation 6} describes the compilation of infix functions. These functions are converted to their {\em postfix} function with their arguments recursively compiled.
+$(6)$ describes the compilation of infix functions. These functions are converted to their postfix forms with their arguments recursively compiled.
+
+\subsubsection {Example : Compiling Sequential MPL Programs}
+Table \ref {AMPL:SEQMPLComp} provides an example of compiling Sequential MPL to SAMPL. The Sequential MPL code being compiled is a function $f1$ whose body {\bf destructs} a {\sf record} with a {\sf destructor} $App$. $App$ takes two arguments: a {\sf record} to destruct and a second argument. The second argument 2 is indirectly an argument to {\sf record} $App(y) := y + 1$ being destructed. The function $f1$ is equivalent to the lambda application $(\lambda x.x+1)~2$. The function $f1$ demonstrates MPL's technique of simulating higher-order functions using codata type.
+~~\\~~\\
+Second row of Table \ref {AMPL:SEQMPLComp} shows the step by step compilation of function $f1$ to its corresponding SAMPL code. The compilation steps have been labelled to identify which rules have been used in any given step.
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|} \hline
+{}\\ 
+{\bf MPL Program corresponding to $(\mathbf{\lambda x.~x+1})~2$} \\~~\\
+\hline\hline 
+\begin{minipage}{3in}
+\begin{alltt}
+
+
+codata C -> Exp(A,B) = App :: A,C -> B 
+
+fun f1  =
+   ->  App( record(App(y) :=  y + 1),2)
+
+
+\end{alltt}
+\end {minipage} \\ 
+\hline 
+{}\\ 
+{\bf Step wise compilation to SAMPL} \\~~\\
+\hline\hline 
+\begin{minipage}{6in}
+{
+  \begin{align*} 
+& {\big\llbracket {\sf App}\big({\sf record}~({\sf App(y)}:=y+1,2)\big)\big\rrbracket}_{[~]} 
+& ({\sf Dest.}~~rule) \\~~\\ 
+& {
+   {\big\llbracket2\big\rrbracket}_{[~]} ~~ \texttt{++} ~~
+   {\big\llbracket {\sf record}~({\sf App(y)}:=y+1)\big\rrbracket}_{[~]}
+   ~~\texttt{++}~~\big[ {\sf Dest~1~1}\big]
+  } & ({\sf Const.}~~\&~~{\sf Rec}~~rule) \\~~\\ 
+& {
+   {\big[{\sf CInt~~2}\big]}~~\texttt{++}~~
+   {{\sf Rec}\Big[\big\llbracket y+1 \big\rrbracket~~ \texttt{++}~~[{\sf Ret}]\Big]}
+   ~~\texttt{++}~~\big[ {\sf Dest~1~1}\big]
+  } & {\sf (Op~(Infix)}~~rule) \\~~\\ 
+& {
+   \big[{\sf CInt~~2}\big]~~\texttt{++}~~
+   {{\sf Rec}\Big[{\big\llbracket 1 \big\rrbracket}_{[y]} ~~ \texttt{++}~~{\big\llbracket y \big\rrbracket}_{[y]}~~\texttt{++}~~[{\sf Add}]~~\texttt{++}~~[{\sf Ret}]\Big]}
+   ~~\texttt{++}~~\big[ {\sf Dest~1~1}\big]
+  } & ({\sf Const.}~~\&~~{\sf Var.}~~rule) \\~~\\   
+& {
+   \big[{\sf CInt~~2}\big]~~\texttt{++}~~
+   {{\sf Rec}\Big[[{\sf CInt~~1}] ~~ \texttt{++}~~[{\sf Access~~1}]~~
+   \texttt{++}~~[{\sf Add}]~~\texttt{++}~~[{\sf Ret}]\Big]}
+   ~~\texttt{++}~~\big[ {\sf Dest~1~1}\big]
+  } & {} \\~~\\ 
+& {
+   \Big[{\sf CInt~~2},{\sf Rec}\big[{\sf CInt~~1},{\sf Access~~1,{\sf Add},{\sf Ret}}\big],{\sf Dest~1~1}\Big]
+  } & {(SAMPL~~code)}   
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+{}\\
+{\bf Compiled SAMPL Code} \\~~\\
+\hline\hline 
+\begin{minipage}{3in}
+\begin{alltt}
+
+
+[
+  CInt 2,
+  Rec [
+        CInt 1,
+        Access 1,
+        Add,
+        Ret
+      ],
+  Dest 1 1
+]
+
+
+\end{alltt}
+\end{minipage}
+
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : Compilation of Sequential MPL to SAMPL}
+\label{AMPL:SEQMPLComp}
+\end{center}
+\end{table}
+
 \subsection {Transition Table for SAMPL}
 
-\begin{table}
+Once {\bf Sequential MPL} has been compiled to SAMPL code, the code can then be executed on the abstract machine. The {\em Code} is represented as a list of SAMPL commands. Two other structures namely the {\em Environment} and the {\em Stack} need to be introduced in order to show how the machine works. Both {\em Environment} and {\em Stack} are Last In First Out (LIFO) data structures. In our implementation of MPL, they have been implemented using Haskell lists. 
+~~\\~~\\
+The {\em Environment} keeps track of which variables are visible in the code at a given point and is thus a transient data structure: it changes as one traverses through the code. The {\em stack} acts as storage for the intermediate values and the final result during the execution of the code. 
+~~\\~~\\ 
+The state of SAMPL at any given time can be described as the triple of the compiled SAMPL {\em Code}, {\em Environment}, and {\em Stack} represented as $(C,E,S)$. Executing SAMPL code means starting with an initial state and changing states based on the transition table for SAMPL described in Table \ref {AMPL:TranSeqTable} until a final state has been reached. The final state contains the result of the computation. The selection of transition at any step of code execution is done by {\bf pattern matching} the machine state against the transition table. Thus, the given description of the SAMPL is easily implemented in Haksell using its pattern matching feature.
+~~\\
+\begin{center}
+Initial State : $(C,~\lbrack~\rbrack,~\lbrack~\rbrack)$
+\end{center}
+~~\\
+The initial state of the machine is formed by putting the compiled code as the first argument of the triple and intialising the {\em Enviornment} and {\em Stack} as empty lists.
+~~\\
+\begin{center}
+Final State : $(\lbrack~\rbrack,~\lbrack~\rbrack,~S)$
+~~\\
+\end{center}
+The final state is reached when the {\em Code} and the {\em Environment} is empty. The top of the {\em Stack} contains the output of the code.
+~~\\~~\\
+In Table \ref {AMPL:TranSeqTable}, {\sf clos(c,e)} denotes closure of {\em Code} $c$ with {\em Environment} $e$ and {\sf e(n)} is the $n^{\rm th}$-element of the environment.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[!h]
 \begin{center}
     \begin{tabular}{|l|l|l||l|l|l|}
     \hline 
@@ -246,72 +366,76 @@ Sequential MPL code is converted to a list of {\em SAMPL} commands which are the
                      & $c $          & $e$    & $(n \leq m):s$    \\ \hline  
    \end{tabular}
 \caption{Machine Transitions for the SAMPL}
-\label{TranTable}
+\label{AMPL:TranSeqTable}
 \end{center}
 \end{table}
 
-
-Once {\bf Sequential MPL} has been compiled to SAMPL code, the code can then be executed on the abstract machine. The {\em code} is represented as a list of SAMPL commands. Two other structures namely {\em environment} and {\em stack} need to be introduced in order to discuss the working of the machine. Both {\em environment and stack} are {\em LIFO} data structures. In our implementation they have been implemneted using {\em lists}. 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection {Example : Executing SAMPL Code}
+This section shows the step wise execution of SAMPL commands through an example. The code selected for execution is the SAMPL code generated for function $f1$ in Table \ref {AMPL:SEQMPLComp}. Step wise execution of code has been shown in Table \ref {AMPL:ExecSeqTable} where $c := {\sf CInt}~1;{\sf Access}~1; {\sf Add}; {\sf Ret}$.
 ~~\\~~\\
-{\em Environment} keeps track of what variables should or shouldn't be visible in the code at a given point and is thus a transient data structure meaning that it changes as one traverses through the code. {\em Stack} acts as storage for the intermediate values and the final result during the execution of the code. 
-~~\\~~\\ 
-The state of SAMPL at any given time can be described as the triple of the {\em compiled SAMPL code, environment and stack} represented as $(C,E,S)$. Excecution of SAMPL code means starting with a initial state, changing states recursively based on the transition table for SAMPL described in Table \ref {TranTable} until a final state has been reached. The final state contains the result of the computation. The selection of transition at any step of code execution is done by {\bf pattern matching} the machine state against the transition table. Thus, the given description of the SAMPL is very easily implementable in Haksell using its pattern matching feature.
-~~\\
-\begin{center}
-Initial State : $(C,~\lbrack~\rbrack,~\lbrack~\rbrack)$
-\end{center}
-~~\\
-The initial state of the machine is formed by putting the compiled code as the first argument of the triple and intialising the {\em enviornment} and {\em stack} as empty lists.
-~~\\
-\begin{center}
-Final State : $(\lbrack~\rbrack,~\lbrack~\rbrack,~S)$
-~~\\
-\end{center}
-The final state is reached the code list and the environment is empty. The top of the stack contains the output of the code.
-~~\\~~\\
-In Table \ref {TranTable}, $ {\sf clos}(c,e) $ denotes closure of code $c$ with environment $e$ and $e(n)$ is the $n^{\rm th}$-element of the environment.
+Initially both the {\em Environment} and {\em Stack} are empty.
+In the final step {\em Code list} and the {\em Environment} are empty and the result is obtained on top of the {\em Stack}.
 
+
+  \begin{table}[!h]
+  \begin{center}
+    \begin{tabular}{|l|l|l|}
+    \hline
+   Code                          & Env                     & Stack                                                    \\ \hline
+     ${\sf CInt}(2) ; {\sf Rec}[c];{\sf Dest}~1~1$      & $\varepsilon$   & $\varepsilon$                                    \\ \hline
+    ${\sf Rec}[c];{\sf Dest}~1~1$             & $\varepsilon$  & ${\sf cint}~2:\varepsilon$  \\ \hline
+     ${\sf Dest}~1 ~1$     & $\varepsilon$   & ${\sf rec}([c],\varepsilon): {\sf cint}~2:\varepsilon$ \\ \hline
+     ${\sf CInt}~1; {\sf Access}~1; {\sf Add}; {\sf Ret}$ & $2:\varepsilon$ & ${\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                   \\ \hline
+     ${\sf Access}(1): {\sf Add}: {\sf Ret}$           & $2:\varepsilon$ & ${\sf cint}~1:{\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                                        \\ \hline
+    ${\sf Add}: {\sf Ret}$                  & ${\sf cint}~2:\varepsilon$ & ${\sf cint}~2:{\sf cint}~1:{\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                                     \\ \hline
+      ${\sf Ret}$                        & ${\sf cint}~2:\varepsilon$ & ${\sf cint}~3:{\sf Clo}(\varepsilon,\varepsilon):\varepsilon$                                                       \\ \hline
+    $\varepsilon$                     & $\varepsilon$   & ${\sf cint}~3:\varepsilon$                                                        \\ \hline
+    \end{tabular}
+    \caption{Executing Code on SAMPL}
+    \label{AMPL:ExecSeqTable}
+    \end{center}
+    \end{table}
 
 \section {Concurrent Abstract Machine for MPL (CAMPL)}
-Concurrent Abstract Machine for MPL (CAMPL) is the machine on which the concurrent MPL code is run. Concurrent MPL code comprises of processes. The state of a process is represented as a four tuple of {\em Stack, Translation, Environment and Code} $(S,t,E,C)$. {\em Stack, Environment and Code} were also used to represent the state of {\em Sequential MPL} programs and have the same meaning here. 
+Concurrent Abstract Machine for MPL (CAMPL) is the machine on which the Concurrent MPL code is run. Concurrent MPL code comprises of processes. The state of a process is represented as a four tuple of {\em Stack, Translation, Environment, and Code} $(S,t,E,C)$. {\em Stack, Environment and Code} are also used to represent the state of Sequential MPL programs and have the same meaning here. 
 \begin{itemize}
-  \item {\em Stack} holds the intermediate value and the final result when executing a process.
-  \item {\em Environment} is used to determined which variables are visible at a given point of the concurrent program.
-  \item {\em Code} is the list of Concurrent AMPL commands corresponding to the MPL program.
+  \item The {\em Stack} holds the intermediate value and the final result when executing a process.
+  \item The {\em Translation} is an additonal structure used in describing the state of a {\em Concurrent MPL} program. This additonal structure is required because Concurrent MPL programs have channels, a feature that the sequential MPL programs lack. {\em Translation} acts as a map of the local channel names to global channel names. This is required because a channel connecting two processes may be named differently inside each process. Processes can then use the {\em translation} to determine that channels though named differently locally refer to the same global  channel.
+
+  \item The {\em Environment} is used to determine which variables are visible at a given point of the Concurrent program.
+  \item The {\em Code} is the list of Concurrent AMPL commands corresponding to the MPL program.
 \end{itemize}
-Translation is an additonal structure used in describing the state of a {\em Concurrent MPL} program. This additonal structure is required because concurrent MPL programs also have channels which the sequential MPL programs don't have.{\em Translation} converts the local channel name into global channel names. This is required because a channel connecting two processes may be named differently inside the individual processes. In order to ensure that the two channels are referring to the same channel, there needs to be a mapping/table that translates the local channel name to global channel names.
+
 \begin{center}
 Initial State : $(~\lbrack~\rbrack,t,\lbrack~\rbrack,C)$
 \end{center}
 ~~\\
-The initial state of CAMPL is formed by loading the compiled code corresponding to Concurrent MPL program (processes) as the fourth argument of the tuple, the {\em translation} of channels corresponding to a process as the second argument, and intialising the {\em enviornment} and {\em stack} which are the first and the third arguments respectively, as empty lists.
+The initial state of CAMPL is formed by loading the compiled code corresponding to Concurrent MPL program (processes) as the fourth argument of the tuple, the {\em Translation} of channels corresponding to a process as the second argument, and intialising the {\em Environment} and {\em Stack} which are the first and the third arguments respectively, as empty lists.
 ~~\\
 \begin{center}
 Final State : $(S,\lbrack~\rbrack,\lbrack~\rbrack,\lbrack~\rbrack)$
 \end{center}
 ~~\\
-The final state is reached when the code list, the environment and the translation is empty. The top of the stack contains the output of the code.
+The final state is reached when the {\em Code}, the {\em Environment} and the {\em Translation} is empty. The top of the stack contains the output of the code.
 ~~\\~~\\
-CAMPL consists of 2 main components:
-\begin{itemize}
-    \item {\bf Channel Mananger}, $\cal C$
-    \item {\bf Process Manager}, $\cal P$
-\end{itemize}
+CAMPL consists of two main components, the {\bf Channel Mananger}, $\cal C$ and the {\bf Process Manager}, $\cal P$.
 \subsection {Channel Mananger}
-Channel Manager, $\cal C$ is a set of pairs of channels and their queues. It is represented as  ${\cal C}\{ (\alpha,q' \mid q) \}$ which indicates that a channel $\alpha$ has the communication queue $q' \mid q$ associated with it. A communication queue has two parts $q'$, the output polarity queue and q, the input polarity queue. If a value $x$ is being put on a channel, it will be added to the front of the output queue, represented as $x:q'$. If a channel $\alpha$ is expecting a value $y$, then $y$ is put at the back of the input queue represented as $q:y$. It is the first element of the output queue and last element of the input queue (represented as $x$ and $y$ in the representation $x:q' \mid q:y$) which are the subject to communication actions described in section \ref {ChanManAct}. 
+The {\bf Channel Manager}, $\cal C$ is a set of pairs of channels and their queues. It is represented as  ${\cal C}\{ (\alpha,q' \mid q) \}$ which indicates that a channel $\alpha$ has the communication queue $q' \mid q$ associated with it. A communication queue has two parts $q'$, the output polarity queue and q, the input polarity queue. If a value $x$ is being put on a channel, it will be added to the front of the output queue, represented as $x:q'$. If a channel $\alpha$ is expecting a value $y$, then $y$ is put at the back of the input queue represented as $q:y$. It is the first element of the output queue and last element of the input queue (represented as $x$ and $y$ in the representation $(x:q' \mid q:y)$ which are the subject to communication actions described in section \ref {ChanManAct}. 
 \subsection {Process Mananger}
-{\bf Process Manager} is a set of processes. {\bf Process Manager} is represented as $\cal P$ $\{(S,t,E,C)\}$ signifying that it has selected one process that will be advanced by one execution step. The {\bf Process Manager} selects this process non-determenenstically. In practise one may want to execute this non-determenenstically selected process not just by one step but for mutliple steps or until it has a concurrent action before interrupting it.
+The {\bf Process Manager} is a set of processes. It is represented as $\cal P$ $\{(S,t,E,C)\}$ signifying that it has selected one process that will be advanced by one execution step. The {\bf Process Manager} selects this process non-deterministically. In practise one may want to execute this non-deterministically selected process not just by one step but for mutliple steps, until it has a concurrent action, before interrupting it.
 
 \subsection {Interaction between Process Manager and Channel Manager}
-The interaction between {\bf Process Manager} and {\bf Channel Manager} can be understood with the help of below example:
+The interaction between the {\bf Process Manager} and the {\bf Channel Manager} can be understood with the help of some examples.
 ~~\\~~\\
-Suppose there are two MPL processes connected by a channel such that the first process {\bf P1} puts a value on the channel and the second process {\bf P2} receives the value on the channel. Since MPL assumes no fixed order of execution of processes, the process receiving the value on the channel maybe executed before the process putting the value on the channel. When process {\bf P2} is executed before {\bf P1}, the {\bf Channel Manager} suspends the process {\bf P2} and attaches it to one of the queues (say output queue) of the channel, ch. When process {\bf P1} is scheduled and executed, the value is obtained on the channel and put on its input queue. Once {\bf Channel Manager} sees the configuration where a supsended process is attached to one queue of the channel and a value is present on the other queue of the channel, it reactivates the suspended process and puts it in the set of active processes. The {\bf Process Manager} can then schedule this active process for execution.
+Suppose there are two MPL processes connected by a channel such that the first process {\bf P1} puts a value on the channel and the second process {\bf P2} receives the value on the channel. Since MPL assumes no fixed order of execution of processes, the process receiving the value on the channel may be executed before the process putting the value on the channel. When process {\bf P2} is executed before {\bf P1}, the {\bf Channel Manager} suspends the process {\bf P2} and attaches it to one of the queues (say output queue) of the channel, ch. When process {\bf P1} is scheduled and executed, the value is obtained on the channel and put on its input queue. Once {\bf Channel Manager} sees the configuration where a suspended process is attached to one queue of the channel and a value is present on the other queue of the channel, it reactivates the suspended process and puts it in the set of active processes. The {\bf Process Manager} can then schedule this active process for execution.
 ~~\\~~\\ 
-Here the intreaction between the {\bf Process Manager} and {\bf Channel Manager} has been explained in terms of just the {\bf get-put} command pair. However, similar interaction between the two components of CAMPL takes places for {\bf split-fork}, {\bf hput-hcase} and {\bf close-halt} pairs.
+Here the interaction between the {\bf Process Manager} and {\bf Channel Manager} has been explained in terms of just the {\bf get-put} command pair. However, similar interaction between the two components of CAMPL takes places for {\bf split-fork}, {\bf hput-hcase} and {\bf close-halt} pairs.
 \subsection {Concurrent Commands}
-In order to understand the working of CAMPL one starts with a look at the CAMPL commands. Corresponding to every concurrent MPL construct, there is one CAMPL command. Table \ref {concurrent-commands} lists the concurrent commands with a brief description of each. The execution of CAMPL commands have been studied as the actions of the two components of the CAMPL, namely {\bf Process Manager Actions} (see section \ref {process-manager} ) and  {\bf Channel Manager Actions} (see section  \ref {channel-manager}).   
+In order to understand the working of CAMPL one starts with a look at the CAMPL commands. Corresponding to every concurrent MPL construct, there is one CAMPL command. Table \ref {concurrent-commands} lists the concurrent commands with a brief description of each. The execution of CAMPL commands have been described by describing the role of {\bf Process Manager} and {\bf Channel Manager} for each command. {\bf Process Manager's} role has been described in  {\bf Process Manager Actions} (see section \ref {process-manager}) and {\bf Channel Manager's} role has been described in {\bf Channel Manager Actions} (see section  \ref {channel-manager}).   
 
-\begin{table}
+\begin{table}[!h]
 \begin{center}
 
 \begin{tabular}{l||l}
@@ -336,14 +460,14 @@ ${\sf run}~t~\< {\tt process} \>$ & runs a process with local channel to caller 
 
 ${\sf id}~\alpha = \beta$ & identifying channels.
 \end{tabular}
-\caption{Basic concurrent commands}
+\caption{Basic Concurrent Commands}
 \label{concurrent-commands}
 \end{center}
 \end{table}
 
 \subsubsection{Process Manager's Actions}{\label{process-manager}}
-This section defines one execution step corresponding to the various CAMPL commands. When a command executes it not only changes the state of the running process shown by ${\cal P}\{ (s,t,e,c)\}$ but may also change the state of the queues associated with a channel. Hence, the {\bf Transtion Table/Process Execution Steps} for CAMPL (described in Table \ref {process-actions}) have columns for both {\bf Process Manager} and {\bf Channel Manager} in the {\em before} and {\em after} column.
-An explanation of the {\bf Process Manager's} actions corresponding to the various CAMPL commands has been provided below:
+This section defines one execution step corresponding to the various CAMPL commands. When a command executes it not only changes the state of the running process shown by ${\cal P}\{ (s,t,e,c)\}$ but may also change the state of the queues associated with a channel. Hence, the {\bf Transition Table} for CAMPL (described in Table \ref {process-actions}) have columns for both {\bf Process Manager} and {\bf Channel Manager} in the {\bf before} and the {\bf after} column.
+An explanation of the {\bf Process Manager's} actions corresponding to the various CAMPL commands is provided below:
 \begin{itemize}
 \item {\bf Get/Put:} These are the two basic communication commands. ${\sf put}$ transmits a value on a communication channel and ${\sf get}$ receives a value on a communication channel.  To ${\sf put}$ a value on a channel one simply 
 places the value on the input queue for that channel. To ${\sf get}$ a value the process suspends itself on the communication channel with the demand for a value.   When the value appears (is put) on the channel the communication manager  
@@ -401,25 +525,7 @@ ${\cal C}\{ (t(\beta), q' \mid q) \} $ & ${\cal P}\{ (s,t,e,{\sf hcase} ~\beta~\
 \end{table}
 
 \subsubsection{Channel Manager's Actions}{\label{channel-manager}} \label{ChanManAct}
-This section describes how CAMPL deals with the dual command pairs of {\sf get-put}, {\sf hput-hcase}, {\sf split-fork} and {\sf close-halt} when {\sf get} occurs before {\sf put}, 
-{\sf hcase} occurs before {\sf hput}, {\sf fork} occurs before {\sf split}.
-~~\\~~\\
-An explanation of the {\bf Channel Manager's} actions:
-\begin{itemize}
-  \item {\bf Communication of values or a handle}:
-When a value/handle is waiting on a channel and there is a suspended process waiting for the value then one can transmit the value and re-enable the process which was waiting. Row 1 of Table \ref {channel-actions} shows the communication of {\sf values}. Row 2 shows the communication of the {\sf handle} facilitated by the {\bf Channel Manager}.
-
-\item {\bf Split/Fork communication}:
-When a suspended process which wishes to fork is waiting on a channel and the corresponding split has been made on the channel one assigns new global channel names to the channels introduced by the fork and enable the processes which are forked modifying the translations of the processes. Row 3 of Table \ref {channel-actions} shows the ${\sf split-fork}$ communication facilitated by the {\bf Channel Manager}.
-
-\item {\bf Close/Halt communication}:
-A channel can be completely removed from the channel manger only when a ${\sf close}$ command matches a ${\sf halt}$ command. This is shown by the row 4 of Table \ref {channel-actions}.
-
-\end{itemize}
-
-
-
-\begin{table}
+\begin{table}[!h]
 \begin{center}
 \begin{tabular}{|l|l||l|l|} \hline
 ${\cal C}\{ (\beta , q\!\!:\!\!v \mid {\sf g}(s,t,e,c,d)) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(v\!\!:\!\! s,t,e,c,d)\}$ \\ \hline
@@ -429,8 +535,92 @@ ${\cal C}\{ (\beta, \<\beta_1,\beta_2\> \mid \left[t,e,\!\!\!\begin{array}[c]{l}
                                               ([],t_{\Gamma_2}[\beta_2/\alpha_2],e,c_2,[]) \end{array} \!\!\!\right\}$ \\ \hline
 ${\cal C}\{ (\beta,{\sf close}\mid {\sf halt} ) \}$ & ${\cal P}$ & ${\cal C}\{ \}$ & ${\cal P}$ \\ \hline
 \end{tabular}
-\caption{Channel manager actions}
+\caption{Channel Manager's Actions}
 \label{channel-actions}
+\end{center}
+\end{table}
+
+This section describes how CAMPL deals with the dual command pairs of {\sf get-put}, {\sf hput-hcase}, {\sf split-fork} and {\sf close-halt} when {\sf get} occurs before {\sf put}, 
+{\sf hcase} occurs before {\sf hput}, {\sf fork} occurs before {\sf split}.
+~~\\~~\\
+An explanation of the {\bf Channel Manager's} actions:
+\begin{itemize}
+  \item {\bf Communication of values or a handle}:
+When a value/handle is waiting on a channel and there is a suspended process waiting for the value then one can transmit the value and re-enable the process which was waiting. Row 1 of Table \ref {channel-actions} shows the communication of {\sf values}. Row 2 shows the communication of a {\sf handle} facilitated by the {\bf Channel Manager}.
+
+\item {\bf Split/Fork communication}:
+When a suspended process which wishes to fork is waiting on a channel and the corresponding split has been made on the channel one assigns new global channel names to the channels introduced by the fork and enable the processes which are forked modifying the translations of the processes. Row 3 of Table \ref {channel-actions} shows the ${\sf split-fork}$ communication facilitated by the {\bf Channel Manager}.
+
+\item {\bf Close/Halt communication}:
+A channel can be completely removed from the channel manger only when a ${\sf close}$ command matches a ${\sf halt}$ command. This is shown by the row 4 of Table \ref {channel-actions}.
+
+\end{itemize}
+
+\subsubsection {Example : Compiling and Executing Concurrent MPL Programs}
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.5in}
+{
+\begin{alltt}
+
+
+  protocol IntTerm (A) => P =
+      GetInt   :: Get (A|P) => P 
+      PutInt   :: Put (A|P) => P
+      Close    :: Top       => P  
+
+  coprotocol CP => Console (A) =
+      GetIntC   :: CP => Put (A|CP)  
+      PutIntC   :: CP => Get (A|CP) 
+      CloseC    :: CP => TopBot  
+
+  run console => intTerm1 -> do
+      hput GetInt on intTerm1
+      get num1 on intTerm1
+      hput GetInt on intTerm1
+      get num2 on intTerm1
+      hput PutInt on intTerm1
+      put (num1+num2) on intTerm1
+      hput Close on intTerm1
+      close intTerm1
+      hput CloseC on console
+      halt console
+
+
+\end{alltt}
+
+} 
+\end {minipage} &
+\begin{minipage}{4in}
+{
+\begin{alltt}
+     {\it   -- put first handle on channel -1 which is a service 
+          -- channel called intTerm1} 
+       hput -1 1
+     {\it   -- get a value on channel -1} 
+       get -1 
+     {\it   -- store the value obtained from -1} 
+       store
+     {\it   -- get another value from -1 and store} 
+       hput -1 1
+       get -1
+       store
+     {\it   -- put second handle on channel -1 and store} 
+       hput -1 1
+\end{alltt}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : Compilation of Concurrent MPL Program to CAMPL}
+\label{AMPL : CAMPLExample}
 \end{center}
 \end{table}
 
