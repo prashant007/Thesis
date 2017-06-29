@@ -1,0 +1,138 @@
+\documentclass[11pt]{article}
+
+
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{proof}
+\usepackage {alltt}
+
+\usepackage{graphicx} % Allows including images
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+\usepackage{listings}
+\usepackage[export]{adjustbox}
+\usepackage{verbatim}
+\tikzset
+  {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
+
+
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\newcommand{\A}{{\ensuremath{\mathbb A}}\xspace}
+\newcommand{\B}{{\ensuremath{\mathbb B}}\xspace}
+\newcommand{\C}{{\ensuremath{\mathbb C}}\xspace}
+\newcommand{\D}{{\ensuremath{\mathbb D}}\xspace}
+\newcommand{\F}{{\ensuremath{\mathbb F}}\xspace}
+\newcommand{\G}{{\ensuremath{\mathbb G}}\xspace}
+\newcommand{\R}{{\ensuremath{\mathbb R}}\xspace}
+
+\newcommand{\rst}[1]{\overline{#1}\,}
+\newcommand{\Sets}{{\ensuremath{\sf Sets}}\xspace}
+\newcommand{\Cat}{{\ensuremath{\sf Cat}}\xspace}
+
+\input xy
+\xyoption{all}
+\xyoption{2cell}
+\UseAllTwocells
+
+\title{Abstract machine for MPL (AMPL)}
+
+\bibliographystyle{plain}
+
+%%%%%%%%% macros defined %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\X}{{\ensuremath{\mathbb X}}\xspace}
+\newcommand{\Y}{{\ensuremath{\mathbb Y}}\xspace}
+\newcommand{\Z}{{\ensuremath{\mathbb Z}}\xspace}
+
+\newcommand{\<}{\langle}
+\renewcommand{\>}{\rangle}
+\newcommand{\lollipop}{\ensuremath{-\!\!\circ}}
+
+\newcommand{\op}{\ensuremath{^{\textnormal{op}}}}
+\renewcommand{\hat}{\widehat}
+\renewcommand{\b}{\bullet}
+\renewcommand{\c}{\circ}
+\newcommand{\ox}{\otimes}         
+\newcommand{\x}{\times}     
+\newcommand{\fold}[1]{\ensuremath{\left\{\!\!\!\;\left| #1 \right|\!\!\!\;\right\} }}  
+\newcommand{\unfold}[1]{\ensuremath{\left(\!\!\!\;\left| #1 \right|\!\!\!\;\right) }}  
+\def\endproof{~\hfill$\Box$\vskip 10pt}
+
+\newtheorem{theorem}{Theorem}[section]    
+\newtheorem{corollary}[theorem]{Corollary}   
+\newtheorem{lemma}[theorem]{Lemma}   
+\newtheorem{remark}[theorem]{Remark}   
+\newtheorem{example}[theorem]{Example}   
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+
+\newcommand{\proof}{\noindent{\sc Proof:}\xspace}
+
+\def\monus{\buildrel\textstyle.\over
+    {\hbox{\vrule height.55ex width0pt
+        \smash{\hbox{\mathsurround=0pt$-$}}}}}
+\def\xybox#1#2{\save [].[#2]!C="xb#1"*[F.]\frm{}\restore}
+
+\begin{document}
+\maketitle
+
+\section {Concurrent MPL constructs}
+Concurrent MPL constructs are the constructs using which concurrent MPL programs are written. In this chapter, various concurrent MPL constructs are discussed.
+
+\section {Introduction}
+Concurrent MPL constructs are {\sf plug}, {\sf id}, {\sf hput-hcase}, {\sf get-put}, {\sf split-fork} and {\sf close-halt}. A few noticeable observations about concurrent MPL constructs are below:
+\begin{itemize}
+  \item MPL constructs with the exception of {\sf run} contruct perform an action on a channel. In MPL concurrency is modeled using {\em message passing} between processes and channels are the conduit through which the messages are exchanged. So, it is only logical that most constructs deal with channel.
+  \item Most concurrent MPL constructs come in pair, i.e {\sf get-put}, {\sf hput-hcase}, {\sf split-fork} and {\sf halt-close}. {\sf id}, {\sf run} and {\sf plug} are standalone constructs. The constructs of the pair are dual to each other.
+  This is intuitive because in message passing view of concurrency for someone to respond to an action, someone else should drive that action on the opposite end of the channel and viveversa. Thus one of the constructs of in a pair is a driver construct and the other is a reaction construct. For example, for a process to receive a value on a channel, some other process should have put a value on the channel.
+\end{itemize}
+
+A brief description of the constructs are as below:
+
+\begin{table}[!h]
+\begin{center}
+    \begin{tabular}{|l||l|}
+    \hline 
+        {\sf run} & calls a process \\ \hline 
+        {\sf id}  & equates two channels \\ \hline 
+        {\sf plug} & connects two processes by a channel \\ \hline  
+        {\sf get} & gets a value on a channel \\ \hline 
+        {\sf put} & puts a value on a channel \\ \hline 
+        {\sf hput} & puts a handle on a channel \\ \hline 
+        {\sf hcase} & cases on the handles obtained on channel \\ \hline 
+        {\sf split} & splits a channel into two channels \\ \hline 
+        {\sf fork} & forks two new processes \\ \hline 
+        {\sf close} & closes a channel \\ \hline 
+        {\sf halt} & closes a channel \\ \hline
+   \end{tabular}
+\caption{Machine Transitions for the SAMPL}
+\label{AMPL:TranSeqTable}
+\end{center}
+\end{table}
+
+In the next section, the concurrent MPL constructs are described in details with examples.
+
+\section{get-put}
+These are the simplest MPL constructs. {\sf get} receives a value on a channel and {\sf put} puts a value on a channel.
+\end {document}
+

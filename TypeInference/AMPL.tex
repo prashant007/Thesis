@@ -100,7 +100,7 @@
 \tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
                      minimum height=1.8cm,text centered, draw=black]
 \tikzstyle{arrow} = [very thick,->,>=stealth]
-In the previous chapters the different stages of compilation of MPL programs (listed in Figure in \ref {fig:CSAM}) have been described. In this chapter, the last stage of compilation, namely running MPL programs on MPL's abstract machine (called AMPL) is discussed.
+In the previous chapters the different stages of interpretation of MPL programs (listed in Figure in \ref {fig:CSAM}) have been described. In this chapter, the last stage of interpretation, namely running MPL programs on MPL's abstract machine (called AMPL) is discussed.
 ~~\\
 \begin{figure}[h!]
 \begin {center}
@@ -131,7 +131,7 @@ Abstract machines are useful conceptual tools when implementing a programming la
   \item Landin's SECD Machine was one of the first abstract machines for functional programming languages specifically designed to evaluate lambda calculus expressions {\bf by value}.
   \item Modern-SEC Machine is an improved and efficient version of the SECD machine.
   \item Cardelli's Functional Abstract Machine (FAM) is an extended and optimized SECD machine. It was used in the first native-code implementation of ML.
-  \item Cousineau's Categorial Abstract Machine (CAM). Its instructions correspond to the constructions of a {\em Cartesian Closed Category}: identity, composition, abstraction, application, pairing, and selection. It was the basis for the CAML programming language.
+  \item Cousineau, Curien and Mauny's Categorial Abstract Machine (CAM). Its instructions correspond to the constructions of a {\em Cartesian Closed Category}: identity, composition, abstraction, application, pairing, and selection. It was the basis for the CAML programming language.
   \item Three Instruction Machine (TIM) is a simple abstract machine for evaluation of super-combinators.
   \item Spineless-Tagless G-Machine (STG-Machine) is the abstract machine for Haskell.
   \item Warren Abstract Machine (WAM) is the abstract machine for Prolog.
@@ -197,30 +197,98 @@ Sequential MPL code is converted to a list of SAMPL commands which are then exec
    \llbracket a~{\rm op}~b \rrbracket_v & = & \llbracket b \rrbracket_v ~ \llbracket a \rrbracket_v {\sf Op} \\
     \llbracket k\rrbracket_v & = & {\sf Const}_T(k) 
   \end{eqnarray}
-${\llbracket ~\rrbracket}_v$ signifies the compilation of a {\em CMPL} construct to {\em SAMPL} commands in context of an {\em environment} $v$. The environment acts as a repository of variables used in a piece of code being compiled. It is used to replace a variable name with the relative position in the program body.
+${\llbracket ~\rrbracket}_v$ signifies the compilation of a {\em Core MPL's} sequential constructs to {\em SAMPL} commands in context of an {\em environment} $v$. The environment acts as a repository of variables used in a piece of code being compiled. It is used to replace a variable name with the relative position in the program body.
 ~~\\~~\\
-A discussion of these compilation steps is:
+A description of these compilation steps is:
 ~~\\~~\\
-$(1)$ describes the compilation scheme for the {\sf record} construct. {\sf D$_i$} is the $i^{th}$ destructor and {\sf t$_i$} is the corresponding term for that destructor.
+$(1)$ is the compilation scheme for the {\sf record} construct. {\sf D$_i$} is the $i^{th}$ destructor and {\sf t$_i$} is the corresponding term for that destructor.
 ~~\\~~\\
-$(2)$ describes the compilation scheme for a {\sf destructor} construct represented by $D_i$. The first argument to the {\sf D$_i$} here is the record to be destructed and the subsequent arguments are the arguments of {\sf D$_i$}. 
+$(2)$ is the compilation scheme for a {\sf destructor} represented by $D_i$. The first argument of {\sf D$_i$} is the record to be destructed and the subsequent arguments are the arguments of {\sf D$_i$}. 
 ~~\\~~\\ 
-$(3)$ describes the compilation of {\sf constructor} represented by $Cons_i$. The terms {\sf t$_1,\ldots,$ t$_n$} which are the arguments of the constructors are recursively compiled and concatenated in the order opposite to which they occur. The constructor name is gotten rid in the compilation process and is instead represented by a pair of constructor number and the number of arguments that the constructor takes.
+$(3)$ is the compilation of a {\sf constructor} $Cons_i$. The terms {\sf t$_1,\ldots,$ t$_n$} which are the arguments of the constructors are recursively compiled and concatenated in the order opposite to which they occur. The constructor name is gotten rid in the compilation process and is instead represented by a pair, the constructor number and the number of arguments that the constructor takes.
 ~~\\~~\\
-$(4)$ describes the compilation of a {\sf case} construct. A few things worth noting in the compilation of {\sf case} constructs are as following:
+$(4)$ is the compilation of a {\sf case} construct. A few things worth noting in the compilation of {\sf case} constructs are as follows:
 \begin {itemize}
 \item The term {\sf t$_i$} corresponding to the {\sf Cons$_i$} is compiled in the context enhanced with the arguments of {\sf Cons$_i$}.
 \item {\sf Ret (return)} should be the last command in the compiled code corresponding to any constructor {\sf Cons$_i$}.
 \item Before the compilation of the {\sf Case} construct starts, it should be ensured that the constructors of the data type are arranged in the same order as they have been defined.
 \end{itemize}
-$(5)$ describes the compilation of a {\sf variable x}. The variable is looked up in the context $v$. The depth of the variable in the context is the argument to the {\sf Access} command.
+$(5)$ is the compilation of a {\sf variable x}. The variable is looked up in the context $v$. The depth of the variable in the context is the argument to the {\sf Access} command.
 ~~\\~~\\
-$(6)$ describes the compilation of infix functions. These functions are converted to their postfix forms with their arguments recursively compiled.
+$(6)$ is the compilation of infix functions. These functions are converted to their postfix forms with their arguments recursively compiled.
 
-\subsubsection {Example : Compiling Sequential MPL Programs}
-Table \ref {AMPL:SEQMPLComp} provides an example of compiling Sequential MPL to SAMPL. The Sequential MPL code being compiled is a function $f1$ whose body {\bf destructs} a {\sf record} with a {\sf destructor} $App$. $App$ takes two arguments: a {\sf record} to destruct and a second argument. The second argument 2 is indirectly an argument to {\sf record} $App(y) := y + 1$ being destructed. The function $f1$ is equivalent to the lambda application $(\lambda x.x+1)~2$. The function $f1$ demonstrates MPL's technique of simulating higher-order functions using codata type.
+
+\subsection {Transition Table for SAMPL}
+
+Once {\bf Sequential MPL} has been compiled to SAMPL code, the code can then be executed on the abstract machine. The {\em Code} is represented as a list of SAMPL commands. Two other structures namely the {\em Environment} and the {\em Stack} need to be introduced in order to show how the machine works. Both {\em Environment} and {\em Stack} are Last In First Out (LIFO) data structures. In our implementation of MPL, they have been implemented using Haskell lists. 
 ~~\\~~\\
-Second row of Table \ref {AMPL:SEQMPLComp} shows the step by step compilation of function $f1$ to its corresponding SAMPL code. The compilation steps have been labelled to identify which rules have been used in any given step.
+The {\em Environment} keeps track of which variables are visible in the code at a given point and is thus a transient data structure: it changes as one traverses through the code. The {\em stack} acts as storage for the intermediate values and the final result during the execution of the code. 
+~~\\~~\\ 
+The state of SAMPL at any given time can be described as the triple of the compiled SAMPL {\em Code}, {\em Environment}, and {\em Stack} represented as $(C,E,S)$. Executing SAMPL code means starting with an initial state and changing states based on the transition table for SAMPL described in Table \ref {AMPL:TranSeqTable} until a final state has been reached. The final state contains the result of the computation. The selection of transition at any step of code execution is done by {\bf pattern matching} the machine state against the transition table. Thus, the given description of the SAMPL is easily implemented in Haksell using its pattern matching feature.
+~~\\
+The initial state of the machine is formed by putting the compiled code as the first argument of the triple and intialising the {\em Enviornment} and {\em Stack} as empty lists.
+~~\\
+\begin{center}
+Initial State : $(C,~\lbrack~\rbrack,~\lbrack~\rbrack)$
+\end{center}
+~~\\
+The final state is reached when the {\em Code} and the {\em Environment} is empty. The top of the {\em Stack} contains the output value.
+~~\\ 
+\begin{center}
+Final State : $(\lbrack~\rbrack,~\lbrack~\rbrack,~S)$
+\end{center}
+~~\\~~\\
+In Table \ref {AMPL:TranSeqTable}, {\sf clos(c,e)} denotes closure of {\em Code} $c$ with {\em Environment} $e$ and {\sf e(n)} is the $n^{\rm th}$-element of the environment.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[!h]
+\begin{center}
+    \begin{tabular}{|l|l|l||l|l|l|}
+    \hline 
+      \multicolumn{3}{|c||}{Before} 
+     & \multicolumn{3}{c|}{After} \\ \hline    
+   Code   & Env  & Stack      
+                      &Code   & Env  & Stack     \\ \hline
+         ${\sf Store};c$   &$ e$    & $v:s$          
+                     & $c$           & $v:e$    & $s$     \\ \hline   
+        ${\sf Access}(n);c$   &$ e$    & $s$          
+                     & $c$           & $e$    & $e(n):s$     \\ \hline    
+      ${\sf Call}(c):c'$         & $e$    & $s$  
+                     & $c$          & $e$   & ${\sf clos}(c',e):s$        \\ \hline              
+    ${\sf Ret}:c$         & $e$    & $v:{\sf clos}(c',e'):s$  
+                     & $c'$          & $e'$   & $v:s$        \\ \hline \hline  
+         ${\sf Cons}(i,n):c $ & $e$    & $v_1:...,v_n:s$      
+                     & $c$           &$ e$    & ${\sf cons}(i,[v_1,..,v_n]):s$    \\ \hline      
+          ${\sf Case}(c_1,...,c_n):c $ & $e$ & ${\sf Cons}(i,[v_1,...,v_n]):s$ 
+                     & $c_i$ & $v_1:..:v_n:e$ & ${\sf clo}(c,e):s$ \\ \hline \hline
+     ${\sf Rec}(c_1,..,c_n):c$      & $e$   & $s$         
+                     & $c$           & $e$    & ${\sf rec}([c_1,...,c_n],e):s$    \\ \hline
+     ${\sf Dest}(i,n):c$         & $e$    & ${\sf rec}([c_1,..,c_n],e'):v_n:..:v_1:s$ 
+                     & $ c_i$          & $v_1:..:v_n:e'$  & ${\sf clo}(c,e):s$      \\ \hline \hline
+     ${\sf Const}_T(k):c $ & $e$    & $s$      
+                     & $c$           &$ e$    & ${\sf const}_T(k):s$    \\ \hline      
+     ${\sf Add}:c$         & $e$    & $n:m:s$      
+                     & $c $          & $e$    & $(n+m):s$    \\ \hline                  
+     ${\sf Mul}:c$         & $e$    & $n:m:s$      
+                     & $c $          & $e$    & $(n*m):s$    \\ \hline 
+     ${\sf Leq}:c$         & $e$    & $n:m:s$      
+                     & $c $          & $e$    & $(n \leq m):s$    \\ \hline  
+   \end{tabular}
+\caption{Machine Transitions for the SAMPL}
+\label{AMPL:TranSeqTable}
+\end{center}
+\end{table}
+
+\subsection {Example : Compiling And Executing Sequential MPL Programs}
+Table \ref {AMPL:SEQMPLComp} provides an example of compiling Sequential MPL to SAMPL. The Sequential MPL code being compiled is a function $f1$ whose body {\bf destructs} a {\sf record} with a {\sf destructor} $App$. $App$ takes two arguments: a {\sf record} to destruct and a second argument. The second argument 2 is indirectly an argument to {\sf record} $App(y) := y + 1$ being destructed. The function $f1$ is equivalent to the lambda application $(\lambda x.x+1)~2$. The function $f1$ demonstrates MPL's technique of simulating higher-order functions using codata types.
+~~\\~~\\
+Second row of Table \ref {AMPL:SEQMPLComp} shows an example of the step by step compilation of function $f1$ to its corresponding SAMPL code. The compilation steps have been labelled to identify which rules have been used in any given step.
+~~\\~~\\ 
+Table \ref  {AMPL:ExecSeqTable} shows an example of the step by step execution of SAMPL commands. The code selected for execution is the SAMPL code generated for function $f1$ in Table \ref {AMPL:SEQMPLComp}. In Table \ref {AMPL:ExecSeqTable}, too keep the table readable, $c$ has been used for ${\sf CInt}~1;{\sf Access}~1; {\sf Add}; {\sf Ret}$ .
+~~\\~~\\
+Execution of the code starts with empty {\em Environment} and {\em Stack}. In the final step {\em Code list} and the {\em Environment} are empty and the result is obtained on top of the {\em Stack}.
 
 \begin{table}[!h]
 \begin{center}
@@ -284,6 +352,7 @@ fun f1  =
 \begin{alltt}
 
 
+
 [
   CInt 2,
   Rec [
@@ -294,6 +363,7 @@ fun f1  =
       ],
   Dest 1 1
 ]
+
 
 
 \end{alltt}
@@ -307,77 +377,8 @@ fun f1  =
 \end{center}
 \end{table}
 
-\subsection {Transition Table for SAMPL}
-
-Once {\bf Sequential MPL} has been compiled to SAMPL code, the code can then be executed on the abstract machine. The {\em Code} is represented as a list of SAMPL commands. Two other structures namely the {\em Environment} and the {\em Stack} need to be introduced in order to show how the machine works. Both {\em Environment} and {\em Stack} are Last In First Out (LIFO) data structures. In our implementation of MPL, they have been implemented using Haskell lists. 
-~~\\~~\\
-The {\em Environment} keeps track of which variables are visible in the code at a given point and is thus a transient data structure: it changes as one traverses through the code. The {\em stack} acts as storage for the intermediate values and the final result during the execution of the code. 
-~~\\~~\\ 
-The state of SAMPL at any given time can be described as the triple of the compiled SAMPL {\em Code}, {\em Environment}, and {\em Stack} represented as $(C,E,S)$. Executing SAMPL code means starting with an initial state and changing states based on the transition table for SAMPL described in Table \ref {AMPL:TranSeqTable} until a final state has been reached. The final state contains the result of the computation. The selection of transition at any step of code execution is done by {\bf pattern matching} the machine state against the transition table. Thus, the given description of the SAMPL is easily implemented in Haksell using its pattern matching feature.
-~~\\
-\begin{center}
-Initial State : $(C,~\lbrack~\rbrack,~\lbrack~\rbrack)$
-\end{center}
-~~\\
-The initial state of the machine is formed by putting the compiled code as the first argument of the triple and intialising the {\em Enviornment} and {\em Stack} as empty lists.
-~~\\
-\begin{center}
-Final State : $(\lbrack~\rbrack,~\lbrack~\rbrack,~S)$
-~~\\
-\end{center}
-The final state is reached when the {\em Code} and the {\em Environment} is empty. The top of the {\em Stack} contains the output of the code.
-~~\\~~\\
-In Table \ref {AMPL:TranSeqTable}, {\sf clos(c,e)} denotes closure of {\em Code} $c$ with {\em Environment} $e$ and {\sf e(n)} is the $n^{\rm th}$-element of the environment.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\begin{table}[!h]
-\begin{center}
-    \begin{tabular}{|l|l|l||l|l|l|}
-    \hline 
-      \multicolumn{3}{|c||}{Before} 
-     & \multicolumn{3}{c|}{After} \\ \hline    
-   Code   & Env  & Stack      
-                      &Code   & Env  & Stack     \\ \hline
-         ${\sf Store};c$   &$ e$    & $v:s$          
-                     & $c$           & $v:e$    & $s$     \\ \hline   
-        ${\sf Access}(n);c$   &$ e$    & $s$          
-                     & $c$           & $e$    & $e(n):s$     \\ \hline    
-      ${\sf Call}(c):c'$         & $e$    & $s$  
-                     & $c$          & $e$   & ${\sf clos}(c',e):s$        \\ \hline              
-    ${\sf Ret}:c$         & $e$    & $v:{\sf clos}(c',e'):s$  
-                     & $c'$          & $e'$   & $v:s$        \\ \hline \hline  
-         ${\sf Cons}(i,n):c $ & $e$    & $v_1:...,v_n:s$      
-                     & $c$           &$ e$    & ${\sf cons}(i,[v_1,..,v_n]):s$    \\ \hline      
-          ${\sf Case}(c_1,...,c_n):c $ & $e$ & ${\sf Cons}(i,[v_1,...,v_n]):s$ 
-                     & $c_i$ & $v_1:..:v_n:e$ & ${\sf clo}(c,e):s$ \\ \hline \hline
-     ${\sf Rec}(c_1,..,c_n):c$      & $e$   & $s$         
-                     & $c$           & $e$    & ${\sf rec}([c_1,...,c_n],e):s$    \\ \hline
-     ${\sf Dest}(i,n):c$         & $e$    & ${\sf rec}([c_1,..,c_n],e'):v_n:..:v_1:s$ 
-                     & $ c_i$          & $v_1:..:v_n:e'$  & ${\sf clo}(c,e):s$      \\ \hline \hline
-     ${\sf Const}_T(k):c $ & $e$    & $s$      
-                     & $c$           &$ e$    & ${\sf const}_T(k):s$    \\ \hline      
-     ${\sf Add}:c$         & $e$    & $n:m:s$      
-                     & $c $          & $e$    & $(n+m):s$    \\ \hline                  
-     ${\sf Mul}:c$         & $e$    & $n:m:s$      
-                     & $c $          & $e$    & $(n*m):s$    \\ \hline 
-     ${\sf Leq}:c$         & $e$    & $n:m:s$      
-                     & $c $          & $e$    & $(n \leq m):s$    \\ \hline  
-   \end{tabular}
-\caption{Machine Transitions for the SAMPL}
-\label{AMPL:TranSeqTable}
-\end{center}
-\end{table}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection {Example : Executing SAMPL Code}
-This section shows the step wise execution of SAMPL commands through an example. The code selected for execution is the SAMPL code generated for function $f1$ in Table \ref {AMPL:SEQMPLComp}. Step wise execution of code has been shown in Table \ref {AMPL:ExecSeqTable} where $c := {\sf CInt}~1;{\sf Access}~1; {\sf Add}; {\sf Ret}$.
-~~\\~~\\
-Initially both the {\em Environment} and {\em Stack} are empty.
-In the final step {\em Code list} and the {\em Environment} are empty and the result is obtained on top of the {\em Stack}.
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%55
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
   \begin{table}[!h]
   \begin{center}
@@ -387,8 +388,8 @@ In the final step {\em Code list} and the {\em Environment} are empty and the re
      ${\sf CInt}(2) ; {\sf Rec}[c];{\sf Dest}~1~1$      & $\varepsilon$   & $\varepsilon$                                    \\ \hline
     ${\sf Rec}[c];{\sf Dest}~1~1$             & $\varepsilon$  & ${\sf cint}~2:\varepsilon$  \\ \hline
      ${\sf Dest}~1 ~1$     & $\varepsilon$   & ${\sf rec}([c],\varepsilon): {\sf cint}~2:\varepsilon$ \\ \hline
-     ${\sf CInt}~1; {\sf Access}~1; {\sf Add}; {\sf Ret}$ & $2:\varepsilon$ & ${\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                   \\ \hline
-     ${\sf Access}(1): {\sf Add}: {\sf Ret}$           & $2:\varepsilon$ & ${\sf cint}~1:{\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                                        \\ \hline
+     ${\sf CInt}~1; {\sf Access}~1; {\sf Add}; {\sf Ret}$ & ${\sf cint} 2:\varepsilon$ & ${\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                   \\ \hline
+     ${\sf Access}(1): {\sf Add}: {\sf Ret}$           & ${\sf cint} 2:\varepsilon$ & ${\sf cint}~1:{\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                                        \\ \hline
     ${\sf Add}: {\sf Ret}$                  & ${\sf cint}~2:\varepsilon$ & ${\sf cint}~2:{\sf cint}~1:{\sf clo}(\varepsilon,\varepsilon):\varepsilon$                                                     \\ \hline
       ${\sf Ret}$                        & ${\sf cint}~2:\varepsilon$ & ${\sf cint}~3:{\sf Clo}(\varepsilon,\varepsilon):\varepsilon$                                                       \\ \hline
     $\varepsilon$                     & $\varepsilon$   & ${\sf cint}~3:\varepsilon$                                                        \\ \hline
@@ -402,7 +403,7 @@ In the final step {\em Code list} and the {\em Environment} are empty and the re
 Concurrent Abstract Machine for MPL (CAMPL) is the machine on which the Concurrent MPL code is run. Concurrent MPL code comprises of processes. The state of a process is represented as a four tuple of {\em Stack, Translation, Environment, and Code} $(S,t,E,C)$. {\em Stack, Environment and Code} are also used to represent the state of Sequential MPL programs and have the same meaning here. 
 \begin{itemize}
   \item The {\em Stack} holds the intermediate value and the final result when executing a process.
-  \item The {\em Translation} is an additonal structure used in describing the state of a {\em Concurrent MPL} program. This additonal structure is required because Concurrent MPL programs have channels, a feature that the sequential MPL programs lack. {\em Translation} acts as a map of the local channel names to global channel names. This is required because a channel connecting two processes may be named differently inside each process. Processes can then use the {\em translation} to determine that channels though named differently locally refer to the same global  channel.
+  \item The {\em Translation} is an additonal structure used in describing the state of a {\em Concurrent MPL} program. This additonal structure is required because Concurrent MPL programs have channels, a feature that the sequential MPL programs lack. {\em Translation} acts as a map of the local channel names to global channel names. This is required because a channel connecting two processes may be named differently inside each process. Processes can then use the {\em translation} to determine which local channels refer to which gobal channels.
 
   \item The {\em Environment} is used to determine which variables are visible at a given point of the Concurrent program.
   \item The {\em Code} is the list of Concurrent AMPL commands corresponding to the MPL program.
@@ -433,7 +434,7 @@ Suppose there are two MPL processes connected by a channel such that the first p
 ~~\\~~\\ 
 Here the interaction between the {\bf Process Manager} and {\bf Channel Manager} has been explained in terms of just the {\bf get-put} command pair. However, similar interaction between the two components of CAMPL takes places for {\bf split-fork}, {\bf hput-hcase} and {\bf close-halt} pairs.
 \subsection {Concurrent Commands}
-In order to understand the working of CAMPL one starts with a look at the CAMPL commands. Corresponding to every concurrent MPL construct, there is one CAMPL command. Table \ref {concurrent-commands} lists the concurrent commands with a brief description of each. The execution of CAMPL commands have been described by describing the role of {\bf Process Manager} and {\bf Channel Manager} for each command. {\bf Process Manager's} role has been described in  {\bf Process Manager Actions} (see section \ref {process-manager}) and {\bf Channel Manager's} role has been described in {\bf Channel Manager Actions} (see section  \ref {channel-manager}).   
+In order to understand the working of CAMPL, we start by considering the CAMPL commands. Corresponding to every concurrent MPL construct, there is one CAMPL command. Table \ref {concurrent-commands} lists the concurrent commands with a brief description of each. The execution of CAMPL commands have been described by describing the role of {\bf Process Manager} and {\bf Channel Manager} for each command. {\bf Process Manager's} role is described in  {\bf Process Manager Actions} (see section \ref {process-manager}) and {\bf Channel Manager's} role is described in {\bf Channel Manager Actions} (see section  \ref {channel-manager}).   
 
 \begin{table}[!h]
 \begin{center}
@@ -466,7 +467,7 @@ ${\sf id}~\alpha = \beta$ & identifying channels.
 \end{table}
 
 \subsubsection{Process Manager's Actions}{\label{process-manager}}
-This section defines one execution step corresponding to the various CAMPL commands. When a command executes it not only changes the state of the running process shown by ${\cal P}\{ (s,t,e,c)\}$ but may also change the state of the queues associated with a channel. Hence, the {\bf Transition Table} for CAMPL (described in Table \ref {process-actions}) have columns for both {\bf Process Manager} and {\bf Channel Manager} in the {\bf before} and the {\bf after} column.
+This section describes the execution step corresponding to the CAMPL commands. When a command executes it not only changes the state of the running process shown by ${\cal P}\{ (s,t,e,c)\}$ but may also change the state of the queues associated with a channel. Hence, the {\bf Transition Table} for CAMPL (described in Table \ref {process-actions}) have columns for both {\bf Process Manager} and {\bf Channel Manager} in the {\bf before} and the {\bf after} column.
 An explanation of the {\bf Process Manager's} actions corresponding to the various CAMPL commands is provided below:
 \begin{itemize}
 \item {\bf Get/Put:} These are the two basic communication commands. ${\sf put}$ transmits a value on a communication channel and ${\sf get}$ receives a value on a communication channel.  To ${\sf put}$ a value on a channel one simply 
@@ -483,7 +484,7 @@ enabled (i.e. added into the process manager).
 these channels must be divided amongst the two process being plugged together: in addition, new global communication channels must be assigned to the channels along which they wish to communicate. After a plug command both 
 processes are enabled (i.e. added into the process manager).
 
-\item {\bf Handle}: The ${\sf hput}$ command, which sends a ``handle'' -- which is a protocol constructor -- is matched by a listening process which will react according to which handle is received by an ${\sf hcase}$ command.  These commands behave 
+\item {\bf Handle}: The ${\sf hput}$ command, which sends a ``handle'' -- a protocol constructor -- which is matched by a listening process which will react according to which handle is received by an ${\sf hcase}$ command.  These commands behave 
 somewhat like a ``put''  and ``get'', except that for the latter one chooses the code which is to be run based on the handle received rather than simply using the value in the subsequent code.
 
 \item {\bf Call}: This ``jumps'' to some code for a predefined process.  The only subtlety in the ${\sf call}$ command is that one must start by setting up the translation of the local channels of the predefined process into global channel names.
@@ -502,7 +503,7 @@ ${\cal C}\{ (t(\alpha),q' \mid q)\}$ & ${\cal P}\{ (v\!\!:\!\!s,t,e,{\sf put}~\a
 ${\cal C}\{ (t(\alpha),q' \mid q\!\!:\!\!v)\} $ & ${\cal P}\{ (s,t,e,c) \}$ \\ \hline
 ${\cal C}\{ (t(\alpha), q' \mid q) \}$ & ${\cal P}\{ ([],t,e,\!\!\!\begin{array}[c]{r}{\sf split}~\alpha~{\sf into}\\ ~(\alpha_1,\alpha_2); c \end{array}\!\!\!) \} $ &
          ${\cal C}\left\{ \!\!\!\begin{array}[c]{l} \!\!\left(\!\!\!\begin{array}[c]{l} t(\alpha), \\ q' \mid q\!\!:\!\! \< \beta_1,\beta_2 \>\end{array} \!\!\!\right) \!\!\\ (\beta_1,\varepsilon) \\ (\beta_2,\varepsilon) \end{array} \!\!\!\!\right\}$ & ${\cal P}\{ ([],t \!\left[ \!\!\!\begin{array}{l} \beta_1/\alpha_1\\ \beta_2/\alpha_2 \end{array} \!\!\!\right]\!,e,c) \}$ \\ \hline
-${\cal C}\{ (t(\alpha),q'\mid q) \}$ & ${\cal P}\{ (s,t,e,{\sf close}~\alpha;c)\} $ & ${\cal C}\{ t(\alpha),q' \mid q\!\!:\!\!{\sf close}) \}$ & ${\cal P}\{ (s,t\backslash\alpha,e)\}$ \\ \hline
+${\cal C}\{ (t(\alpha),q'\mid q) \}$ & ${\cal P}\{ (s,t,e,{\sf close}~\alpha;c)\} $ & ${\cal C}\{ t(\alpha),q' \mid q\!\!:\!\!{\sf close}) \}$ & ${\cal P}\{ (s,t\backslash\alpha,e,c)\}$ \\ \hline
 ${\cal C}\{ (t(\alpha),q' \mid q) \}$ & ${\cal P}\{ ([],t,e, \!\!\!\!\!\begin{array}[c]{l}{\sf fork} ~ \alpha~{\sf as} \\
                            ~\alpha_1~{\sf with}~\Gamma_1. c_1 \\
                            ~\alpha_2~{\sf with}~\Gamma_2. c_2  \end{array}\!\!,[]) \} $ 
@@ -514,7 +515,7 @@ ${\cal C}\{ \}$ & ${\cal P}\{ ([],t,e, \!\!\!\!\!\begin{array}[c]{l}{\sf plug} [
                            ~~~\Gamma_2. c_2  \end{array}\!\!,[]) \} $ 
               & ${\cal C}\{ (\gamma_i,\varepsilon\mid\varepsilon)_{i=1...n}\} $ & ${\cal P}\left\{ \!\!\!\begin{array}[c]{r} ( [],t[\gamma_i/\alpha_i]_{\Gamma_1},e,c_1), \\ ([],t[\gamma_i/\beta_i]_{\Gamma_2},e,c_2) \end{array} \!\!\! \right\}$ \\ \hline
 ${\cal C}\{ (t(\alpha),q'\mid q) \}$ & ${\cal P}\{ ([],t,e,{\sf halt}~\alpha)\} $ & ${\cal C}\{ t(\alpha),q' \mid q\!\!:\!\!{\sf halt}) \}$ & ${\cal P}\{ \}$ \\ \hline
-${\cal C}\{\}$ & ${\cal P}\{ (s,t,{\sf run}~t'~c) \}$ & ${\cal C}\{\}$  & ${\cal P}\{ (s,t;t',c) \}$ \\ \hline
+${\cal C}\{\}$ & ${\cal P}\{ (s,t,e,{\sf run}~t'~c) \}$ & ${\cal C}\{\}$  & ${\cal P}\{ (s,t;t',e',c) \}$ \\ \hline
 ${\cal C}\{ (t(\alpha),q' \mid q)\}$ & ${\cal P}\{ (s,t,e,{\sf hput}~\alpha~n;c) \}$ & 
 ${\cal C}\{ (t(\alpha),q' \mid q\!\!:\!\!{\sf h}(n))\} $ & ${\cal P}\{ (s,t,e,c) \}$ \\ \hline
 ${\cal C}\{ (t(\beta), q' \mid q) \} $ & ${\cal P}\{ (s,t,e,{\sf hcase} ~\beta~\{ c_i \}) \}$ & ${\cal C}\{ (t(\beta), q' \mid q\!\!:\!\!(s,t,e,{\sf hc}\{ c_i\})) \} $ & ${\cal P}\{ \}$ \\ \hline
@@ -525,23 +526,7 @@ ${\cal C}\{ (t(\beta), q' \mid q) \} $ & ${\cal P}\{ (s,t,e,{\sf hcase} ~\beta~\
 \end{table}
 
 \subsubsection{Channel Manager's Actions}{\label{channel-manager}} \label{ChanManAct}
-\begin{table}[!h]
-\begin{center}
-\begin{tabular}{|l|l||l|l|} \hline
-${\cal C}\{ (\beta , q\!\!:\!\!v \mid {\sf g}(s,t,e,c,d)) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(v\!\!:\!\! s,t,e,c,d)\}$ \\ \hline
-${\cal C}\{ (t(\beta) , q\!\!:\!\!{\sf h}(i)  \mid (s,t,e,{\sf hc} ~\{ c_j \},d)) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(s,t,e,c_i,d)\}$ \\ \hline
-${\cal C}\{ (\beta, \<\beta_1,\beta_2\> \mid \left[t,e,\!\!\!\begin{array}[c]{l} \alpha_1/\Gamma_1. c_1 \\ \alpha_2/\Gamma_2. c_2 \end{array} \!\!\!\right] \} $ & ${\cal P}$ 
-                     & ${\cal C}\{ \}$ & ${\cal P}\left\{ \!\!\!\begin{array}{r} ([],t_{\Gamma_1}[\beta_1/\alpha_1],e,c_1,[]), \\
-                                              ([],t_{\Gamma_2}[\beta_2/\alpha_2],e,c_2,[]) \end{array} \!\!\!\right\}$ \\ \hline
-${\cal C}\{ (\beta,{\sf close}\mid {\sf halt} ) \}$ & ${\cal P}$ & ${\cal C}\{ \}$ & ${\cal P}$ \\ \hline
-\end{tabular}
-\caption{Channel Manager's Actions}
-\label{channel-actions}
-\end{center}
-\end{table}
-
-This section describes how CAMPL deals with the dual command pairs of {\sf get-put}, {\sf hput-hcase}, {\sf split-fork} and {\sf close-halt} when {\sf get} occurs before {\sf put}, 
-{\sf hcase} occurs before {\sf hput}, {\sf fork} occurs before {\sf split}.
+This section describes how CAMPL deals with the dual command pairs of {\sf get-put}, {\sf hput-hcase}, {\sf split-fork} and {\sf close-halt} when {\sf get} occurs before {\sf put}, {\sf hcase} occurs before {\sf hput}, {\sf fork} occurs before {\sf split}. These commands are discussed with respect to conventional channels and not {\bf Services}. {\bf Channel Manager's Actions} for {\bf Services} are discussed in Section \ref {channel-man-serv}.
 ~~\\~~\\
 An explanation of the {\bf Channel Manager's} actions:
 \begin{itemize}
@@ -553,11 +538,79 @@ When a suspended process which wishes to fork is waiting on a channel and the co
 
 \item {\bf Close/Halt communication}:
 A channel can be completely removed from the channel manger only when a ${\sf close}$ command matches a ${\sf halt}$ command. This is shown by the row 4 of Table \ref {channel-actions}.
-
 \end{itemize}
 
-\subsubsection {Example : Compiling and Executing Concurrent MPL Programs}
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|l|l||l|l|} \hline
+${\cal C}\{ (\beta , q\!\!:\!\!v \mid {\sf g}(s,t,e,c)) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(v\!\!:\!\! s,t,e,c)\}$ \\ \hline
+${\cal C}\{ (t(\beta) , q\!\!:\!\!{\sf h}(i)  \mid (s,t,e,{\sf hc} ~\{ c_j \})) \}$ & ${\cal P}$ & ${\cal C}\{ (\beta,q \mid \varepsilon) \}$ & ${\cal P}\{(s,t,e,c_i)\}$ \\ \hline
+${\cal C}\{ (\beta, \<\beta_1,\beta_2\> \mid \left[t,e,\!\!\!\begin{array}[c]{l} \alpha_1/\Gamma_1. c_1 \\ \alpha_2/\Gamma_2. c_2 \end{array} \!\!\!\right] \} $ & ${\cal P}$ 
+                     & ${\cal C}\{ \}$ & ${\cal P}\left\{ \!\!\!\begin{array}{r} ([],t_{\Gamma_1}[\beta_1/\alpha_1],e,c_1), \\
+                                              ([],t_{\Gamma_2}[\beta_2/\alpha_2],e,c_2) \end{array} \!\!\!\right\}$ \\ \hline
+${\cal C}\{ (\beta,{\sf close}\mid {\sf halt} ) \}$ & ${\cal P}$ & ${\cal C}\{ \}$ & ${\cal P}$ \\ \hline
+\end{tabular}
+\caption{Channel Manager's Actions for Normal Channels}
+\label{channel-actions}
+\end{center}
+\end{table}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsubsection{Channel Manager's Actions for Services}{\label{channel-man-serv}}
+Services are built in channels in MPL that allow an MPL program to interact with the outside world. Differences in {\bf Channel Manager's} behaviour for services follow from the fact that {\bf Services} are different from conventional channels:
+\begin{itemize}
+  \item Conventional channels are connected to two MPL processes on their two ends whereas {\bf Services} are connected to just one process.
+  \item Actions like {\sf plug}, {\sf split} and {\sf fork} can't be done on {\bf Service} channels. Permissible actions on {\bf Services} are {\sf hput}, {\sf get-put} and {\sf close-halt}.
+\end{itemize}
+The standard way to use a {\bf Service} channel is to {\sf hput} a handle on it and then do any of the {\sf get, put, close, or halt} actions. A protocol commonly used with an output {\bf Service} channel has been defined in Figure \ref {AMPL:ProtExample}. The name of the protocol is {\bf IntTerm} and one can recursively {\sf get-put} on a {\bf Service} and {\sf close} a {\bf Service} using the handles {\bf GetInt}, {\bf PutInt} and {\bf Close} respectively.
+\begin{figure}[!h]
+\begin{alltt}
+
+
+                    protocol IntTerm (A) => P =
+                        GetInt   :: Get (A|P) => P 
+                        PutInt   :: Put (A|P) => P
+                        Close    :: Top       => P  
+
+\end{alltt}
+\caption{Example : Protocol Definition for an Output Service Channel}
+\label {AMPL:ProtExample}
+\end{figure}
+The {\bf Channel Manager's} actions for an output {\bf Service} channel have been described in Table \ref {channel-actions-Serv}. In Table \ref {channel-actions-Serv}, ${\sf h}(1),~{\sf h}(2)$ and ${\sf h}(3)$ refer to the first, second and the third handle respectively. 
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|l|l||l|l|} \hline
+${\cal C}\{ (\beta , \varepsilon \mid \varepsilon :{\sf h}(1):{\sf get}) \}$ &  ${\cal P}\{(s,t,e,c)\}$ & ${\cal C}\{ (\beta,\varepsilon \mid \varepsilon) \}$ & ${\cal P}\{(v\!\!:\!\! s,t,e,c)\}$ \\ \hline
+
+${\cal C}\{ (\beta , \varepsilon \mid \varepsilon :{\sf h}(2):{\sf v}) \}$ & ${\cal P}\{(v\!\!:\!\! s,t,e,c)\}$ & ${\cal C}\{ (\beta,\varepsilon \mid \varepsilon) \}$ & ${\cal P}\{(s,t,e,c)\}$\\ \hline
+
+${\cal C}\{ (\beta , \varepsilon \mid \varepsilon :{\sf h}(3):{\sf close}) \}$ & ${\cal P}$ & ${\cal C}~\backslash~\beta $ & ${\cal P}$ \\ \hline
+
+${\cal C}\{ (\beta , \varepsilon \mid \varepsilon :{\sf h}(3):{\sf halt}) \}$ & ${\cal P}$ & ${\cal C}~\backslash~\beta $ & ${\cal P}$ \\ \hline
+
+
+\end{tabular}
+\caption{Channel Manager's Actions for Services(Output Channel $\beta$)}
+\label{channel-actions-Serv}
+\end{center}
+\end{table}
+
+\subsubsection {Example : Compiling and Executing Concurrent MPL Programs}
+This section shows an example of compiling and executing Concurrent MPL commands on CAMPL. 
+~~\\~~\\
+In Table \ref {AMPL : CAMPLExample} a simple MPL program is taken and its compiled CAMPL code is provided with the description of what each command does. The given MPL program consists of just one process, the {\bf main process} which takes two numbers on an output {\bf Service} channel named {\bf intTerm1}, sums the numbers and displays them on the same {\bf Service}. 
+~~\\~~\\ 
+In Table \ref {AMPL:ExecConcTable} and \ref {AMPL:ExecConcTableRem}, the CAMPL code from Table \ref {AMPL : CAMPLExample} is executed stepwise based on the {\bf Channel Manager's Actions for Services} from Table \ref {channel-actions-Serv}  and the {\bf Process Execution Steps} from Table \ref {process-actions}, till the final state is reached. If the program had normal channels in addition to the {\bf Service} channels, then Table \ref {channel-actions} detailing the  {\bf Channel Manager's Actions for Normal Channels} would also be referenced. 
+~~\\~~\\ 
+In Table \ref {AMPL:ExecConcTable} and \ref {AMPL:ExecConcTableRem},
+\begin {itemize}
+ \item the notation ${\cal C}~\{n, q \mid q'\}$ for {\bf Channel Manager} means that channel number $n$ has two associated queues, $q$ and $q'$, and  
+ \item {\em Translation} represented by $\Gamma$ and is a mapping of local channels to global channels. The translation $\Gamma~\big[\big($~0$,~$0$),\big($-1$,~$-1$)\big]$ means that channels known locally as $0$ and $\texttt{-1}$ are known globally by the same numbers. This is because all the channels in the given program are {\bf Service} channels. {\bf Service} channels are global channels and are known in every process by the same numbers. {\bf Service} channels are represented by numbers less than or equal to 0. 0 is used for a special {\bf Service} channel known as {\bf Console}. 
+\end {itemize}
+The first row of Table  \ref {AMPL:ExecConcTable} describes the initial state in the execution of the main process. Notice the values of different columns in the first row. The {\bf Channel Manager} starts with empty queues for all the channels in the main process. {\em Stack} and {\em Environment} are empty and {\em Translation} is loaded with local to global mapping of channels of the main process. {\bf Code} is initialised to the compiled CAMPL code for the process generated in Table \ref {AMPL : CAMPLExample}.
+~~\\~~\\ 
+Last row of Table \ref {AMPL:ExecConcTableRem} describes the final state in the execution of the main process. Every column is empty except the {\bf stack} which contains the sum of the numbers (output) as its top element.
 \begin{table}[h!]
 \begin{center}
 \begin{tabular}{|c|c|} \hline
@@ -600,19 +653,33 @@ A channel can be completely removed from the channel manger only when a ${\sf cl
 \begin{minipage}{4in}
 {
 \begin{alltt}
+
      {\it   -- put first handle on channel -1 which is a service 
-          -- channel called intTerm1} 
+          -- channel called intTerm1.First handle suggests get 
+          -- action on -1} 
        hput -1 1
-     {\it   -- get a value on channel -1} 
-       get -1 
-     {\it   -- store the value obtained from -1} 
-       store
+       get -1     {\it -- get a value on channel -1}
+       store      {\it -- store the value obtained from -1}
      {\it   -- get another value from -1 and store} 
        hput -1 1
        get -1
-       store
-     {\it   -- put second handle on channel -1 and store} 
-       hput -1 1
+       store 
+       access 2   {\it -- load the second number}
+       access 1   {\it -- load the first number}
+       add        {\it -- add the two numbers}
+
+     {\it   -- put second handle on channel -1. Second Handle 
+          -- suggests a value will be put on -2}
+       hput -1 2  
+       put -1     {\it -- put the sum on channel -1} 
+
+     {\it   -- put third handle on channel -1. Handle 3 
+          -- suggests that channel will be closed.}    
+       hput -1 3
+       close -1   {\it -- close channel -1}
+       hput \(0\) 3   {\it -- put third handle on channel 0}
+       halt \(0\)     {\it -- halt channel 0}
+
 \end{alltt}
 }
 \end {minipage}
@@ -625,5 +692,448 @@ A channel can be completely removed from the channel manger only when a ${\sf cl
 \end{table}
 
 
+\begin{table}
+\begin{center}
+  \begin{tabular}{|l||l|l|l|l|}
+  \hline
+    Channel Manager & Stack & Trans & Env & Code \\
+    \hline 
+    %%%%%%%%%%%%% 1%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+               \begin{array}[c]{l}
+               \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+               \big($-1$,\varepsilon~\mid~\varepsilon\big)
+               \end{array}   
+            \bigg\}
+    $ &
+    $\varepsilon$ &
+    $\Gamma~\bigg[
+               \begin{array}[c]{l}
+               \big($~0$,~$0$),\\
+               \big($-1$,~$-1$)
+               \end{array}   
+            \bigg] 
+    $ &
+    $\varepsilon$ &
+    ${\sf hput}~\texttt{-1~1}:~c_1$\\
+    {}&{}&{}&{}&{}\\   
+    \hline 
+    %%%%%%%%%%%%% 2 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+               \begin{array}[c]{l}
+               \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+               \big($-1$,\varepsilon~\mid~\varepsilon:$h(1)$\big)
+               \end{array}   
+            \bigg\}
+    $ &
+    $\varepsilon$ &
+    $\Gamma~\bigg[
+               \begin{array}[c]{l}
+               \big($~0$,~$0$),\\
+               \big($-1$,~$-1$)
+               \end{array}   
+            \bigg] 
+    $ &
+    $\varepsilon$ &
+    ${\sf get}~\texttt{-1}:~c_2$\\ 
+    {}&{}&{}&{}&{}\\
+    \hline 
+    %%%%%%%%%%%%% 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon:{\sf h}$(1):{\sf get}$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $\varepsilon$ &
+        $~c_2$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+        %%%%%%%%%%%%% 4 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $\varepsilon$ &
+        ${\sf store}:~c_3$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+        %%%%%%%%%%%%% 5 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_1:\varepsilon$ &
+        ${\sf hput}~\texttt{-1~1}:~c_4$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+    %%%%%%%%%%%%% 6 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+               \begin{array}[c]{l}
+               \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+               \big($-1$,\varepsilon~\mid~\varepsilon:$h(1)$\big)
+               \end{array}   
+            \bigg\}
+    $ &
+    $\varepsilon$ &
+    $\Gamma~\bigg[
+               \begin{array}[c]{l}
+               \big($~0$,~$0$),\\
+               \big($-1$,~$-1$)
+               \end{array}   
+            \bigg] 
+    $ &
+    $v_1:\varepsilon$ &
+    ${\sf get}~\texttt{-1}:~c_5$\\ 
+    {}&{}&{}&{}&{}\\
+    \hline 
+    %%%%%%%%%%%%% 7 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon:{\sf h}$(1):{\sf get}$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_1:\varepsilon$ &
+        $~c_5$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+        %%%%%%%%%%%%% 8 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_1:\varepsilon$ &
+        ${\sf store}:~c_6$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+        %%%%%%%%%%%%% 9 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf access~\texttt{2}} :~c_7$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+        %%%%%%%%%%%%% 10 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf access~\texttt{1}} :~c_8$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+        %%%%%%%%%%%%% 11 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf add} :~c_9$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+        %%%%%%%%%%%%% 12 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $\texttt{$v_1\texttt{+}v_2$}:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf hput}~\texttt{-1~2} :~c_{10}$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+  \end{tabular}
+  \caption{Executing Code on CAMPL (Continued On Table \ref {AMPL:ExecConcTableRem})}
+  \label{AMPL:ExecConcTable}
+  \end{center}
+  \end{table}
+
+
+\begin{table}
+\begin{center}
+  \begin{tabular}{|l||l|l|l|l|}
+  \hline
+    Channel Manager & Stack & Trans & Env & Code \\
+    \hline 
+        %%%%%%%%%%%%% 12 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        {}&{}&{}&{}&{}\\
+        $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon:{\sf h}(2)\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $\texttt{$v_1\texttt{+}v_2$}:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf put}~\texttt{-1} :~c_{10}$\\
+        {}&{}&{}&{}&{}\\   
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon:{\sf h}$(2):{\sf put}$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        $~c_{10}$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf hput}~\texttt{-1~3}:~c_{11}$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon:{\sf h}$(3)$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf close}~\texttt{-1}:~c_{12}$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big),\\
+                   \big($-1$,\varepsilon~\mid~\varepsilon:{\sf h}$(3):{\sf close}$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$),\\
+                   \big($-1$,~$-1$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        $~c_{12}$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf hput}~\texttt{$0$~3}:~c_{13}$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon:{\sf h}$(3)$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        ${\sf halt}~\texttt{$0$}:~\varepsilon$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{
+                   \begin{array}[c]{l}
+                   \big($~0$,\varepsilon~\mid~\varepsilon:{\sf h}$(3):{\sf halt}$\big)
+                   \end{array}   
+                \bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[
+                   \begin{array}[c]{l}
+                   \big($~0$,~$0$)
+                   \end{array}   
+                \bigg] 
+        $ &
+        $v_2:v_1:\varepsilon$ &
+        $\varepsilon$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+    {}&{}&{}&{}&{}\\
+    $\cal C~\bigg\{~~\bigg\}
+        $ &
+        $v_1\texttt{+}v_2:\varepsilon$ &
+        $\Gamma~\bigg[~~\bigg] 
+        $ &
+        $\varepsilon$ &
+        $\varepsilon$\\ 
+        {}&{}&{}&{}&{}\\
+        \hline 
+  \end{tabular}
+  \caption{Executing Code on CAMPL (Continued from Table \ref {AMPL:ExecConcTable})}
+  \label{AMPL:ExecConcTableRem}
+  \end{center}
+  \end{table}
+
+%${\sf hput}~\texttt{-1~3} :~c_{11}$\\ 
 \end {document}
 

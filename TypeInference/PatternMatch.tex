@@ -752,7 +752,7 @@ fun append =
 {\small
 \begin{center}
 \begin{tabular}{|c|c|} \hline
-{\bf 1 : match Rep. of \textit{append} body} & {\bf 2 : Reformatting match for Constr. Rule} \\ 
+{\bf 1 : Reformatting match for Constr. Rule} & {\bf 2 : Applying Constr. Reduction Rule} \\ 
 \hline
 \begin{minipage}{3in}
  {
@@ -778,7 +778,7 @@ fun append =
 }
 \end {minipage}\\ 
 \hline 
-{\bf 3 : Applying Constr. Reduction Rule} & {\bf 4 : Reducing \textit{Nil} match (see Table)} \\ 
+{\bf 2 : Reducing \textit{Nil} match (see Table \ref {Pmatch:Ex1StepWiseNil})} & {\bf 5 : Reducing \textit{Cons} match (see Table \ref {Pmatch:Ex1StepWiseCons})} \\ 
 \hline
 \begin{minipage}{3in}
 {
@@ -810,7 +810,7 @@ fun append =
 \end {minipage}\\ 
 
 \hline 
-\multicolumn{2}{|c|}{\bf 5 : \textit{append} body with case}\\ 
+\multicolumn{2}{|c|}{}\\ 
 \hline
 \multicolumn{2}{|c|}{
 \begin{minipage}{3in}
@@ -826,7 +826,7 @@ fun append =
 \tabularnewline
 \hline
 \end{tabular}
-\caption{Reduction of {\bf match} corresponding to \textit{append} body}
+\caption{5 : \textit{append} body with {\sf case}}
 \label{Pmatch:Ex1StepWise}
 \end{center}
 }
@@ -877,7 +877,7 @@ u_2
 {\small
 \begin{center}
 \begin{tabular}{|c|c|} \hline
-{\bf 1 : match Rep. of \textit{append} body} & {\bf 2 : Reformatting match for Constr. Rule} \\ 
+{\bf 1 : Variable Rule} & {\bf 2 : Variable Rule} \\ 
 \hline
 \begin{minipage}{3in}
  {
@@ -899,7 +899,7 @@ u_2
 }
 \end {minipage}\\ 
 \hline 
-{\bf 1 : match Rep. of \textit{append} body} & {\bf sthg Else} \\ 
+{\bf Variable Rule} & {\bf Empty Rule} \\ 
 \hline
 \begin{minipage}{3in}
  {
@@ -921,7 +921,7 @@ u_2
 }
 \end {minipage}\\ 
 \hline 
-\multicolumn{2}{|c|}{\bf 5 : match Rep. of \textit{append} body} \\ 
+\multicolumn{2}{|c|}{\bf 5 : Normal Form} \\ 
 \hline 
 \multicolumn{2}{|c|}{
 \begin{minipage}{3in}
