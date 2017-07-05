@@ -17,7 +17,7 @@
 \tikzset
   {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
 
-
+\usetikzlibrary{decorations.markings}
 \usepackage{amsmath }
 \usepackage{framed}
 \usepackage{proof}
@@ -48,13 +48,24 @@
 \newcommand{\rst}[1]{\overline{#1}\,}
 \newcommand{\Sets}{{\ensuremath{\sf Sets}}\xspace}
 \newcommand{\Cat}{{\ensuremath{\sf Cat}}\xspace}
+\newcommand{\llab}[1]{\tiny{\texttt{(+)~~~}}
+                      \small{$#1$}
+                      \tiny{\texttt{~~~(-)}}
+                     }
+\newcommand{\plab}[1]{\tiny{\texttt{(+)~~~}}
+                      \small{$#1$}
+                     }
+
+
+
+\newcommand{\proc}[2] {\small{\sf{$#1$}}\\~~\\ \tiny{{#2}}}
 
 \input xy
 \xyoption{all}
 \xyoption{2cell}
 \UseAllTwocells
 
-\title{Abstract machine for MPL (AMPL)}
+\title{Concurrent MPL}
 
 \bibliographystyle{plain}
 
@@ -93,6 +104,7 @@
         \smash{\hbox{\mathsurround=0pt$-$}}}}}
 \def\xybox#1#2{\save [].[#2]!C="xb#1"*[F.]\frm{}\restore}
 
+
 \begin{document}
 \maketitle
 
@@ -123,16 +135,131 @@ A brief description of the constructs are as below:
         {\sf split} & splits a channel into two channels \\ \hline 
         {\sf fork} & forks two new processes \\ \hline 
         {\sf close} & closes a channel \\ \hline 
-        {\sf halt} & closes a channel \\ \hline
+        {\sf halt} & closes a channel. Usually the last channel is halted. \\ \hline
    \end{tabular}
 \caption{Machine Transitions for the SAMPL}
 \label{AMPL:TranSeqTable}
 \end{center}
 \end{table}
 
-In the next section, the concurrent MPL constructs are described in details with examples.
+In the next section, the concurrent MPL constructs are described in details.
 
 \section{get-put}
-These are the simplest MPL constructs. {\sf get} receives a value on a channel and {\sf put} puts a value on a channel.
+These are the simplest MPL constructs. {\sf get} receives a value on a channel and {\sf put} puts a value on a channel. 
+\begin{itemize}
+  \item On an output channel, {\sf get} results in {\bf Get} protocol and {\sf put} results in {\bf Put} protocol.
+  \item On an input channel, {\sf get} and {\sf put} constructs result in {\bf Put} and {\bf Get} protocols respectively.
+\end{itemize}
+Thus, {\sf get/put} constructs result in different protocols depending on the polarity of the channel over which they act. This is done in order to infer the same protocol for a channel from the two processes attached at the two ends of the channel.
+
+\subsection {get-put Example}
+Table \ref {fig:Conc_getput} shows an example of an MPL program that uses {\sf get-put} construct. The process connectivity diagram of an MPL program represents how different processes of the program are connected via channels. Figure \ref {Conc : getputExample} represents the process connectivity diagram for the example program in Table \ref {fig:Conc_getput}.
+~~\\~~\\ 
+In the program there are three processes, $\mathbf {p1}$, $\mathbf {p2}$ and $\mathbf {p3}$ apart from the main process. These processes have been represented by three circles named as $\mathbf{P_1}$, $\mathbf{P_2}$ and $\mathbf {P_3}$ respectively in the process connectivity diagram.
+~~\\~~\\
+Channel $\mathbf {ch2}$ is plugged between processes $\mathbf {p2}$ and $\mathbf {p3}$ and channel $\mathbf {ch1}$ is plugged between processes $\mathbf {p3}$ and $\mathbf {p1}$. These channels are drawn as solid lines joining $\mathbf {P_2}$-$\mathbf {P_3}$ and $\mathbf {P_3}$-$\mathbf {P_1}$ respectively in the process connectivity diagram. $\mathbf {ch2}$ acts as an output channel for process $\mathbf {p2}$ and an input channel for process $\mathbf {p3}$. The $\mathbf {\texttt{(+)}}$ sign on $\mathbf {ch2}$ at process $\mathbf {P_2}$'s end and $\mathbf {\texttt{(-)}}$ sign on $\mathbf {P_3}$'s end represents the polarity of channel with respect to the two processes it is plugged between.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|} \hline
+\begin{minipage}{5in}
+{
+\begin{alltt}
+
+
+    protocol IntTerm (A) => P =
+        GetInt    :: Get (A|P) => P 
+        PutInt    :: Put (A|P) => P
+        Close     :: TopBot    => P  
+
+
+    proc p2 :: |  => IntTerm (Int),Put(Int|TopBot) =
+        |  => s1,ch2 -> do 
+            hput GetInt on s1
+            get x on s1
+            put x on ch2
+            hput Close on s1
+            close s1 
+            halt ch2
+
+
+    proc p3 :: |  Put (Int|TopBot) => Put (Int|TopBot) =
+        | ch2 => ch1 -> do 
+           get x on ch2
+           put x on ch1 
+           close ch2
+           halt ch1
+
+    proc p1 :: | Put (Int|TopBot) => IntTerm (Int) = 
+         | ch1 => s2 -> do 
+            get x on ch1 
+            hput PutInt on s2 
+            put x on s2 
+            hput Close on s2 
+            close s2
+            halt ch1
+
+    run => intTerm1,intTerm2 -> do 
+        plug
+          p2 ( | => intTerm1,ch2)  
+          p3 ( | ch2 => ch1) 
+          p1 ( | ch1 => intTerm2 )
+
+
+
+\end{alltt}
+
+} 
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : {\sf get-put} constructs}
+\label{Conc : getputExample}
+\end{center}
+\end{table}
+
+
+\begin{figure}[!h]
+\begin{center}
+\begin{tikzpicture}[ scale = 2,
+                     every node/.style={very thick},draw = black,
+                   ]
+ \draw (0,0)  node[circle,draw=black,text width = 1.4cm,align=center] (A) 
+              {\proc{P_2}{ 
+                         }
+              };
+
+ \draw (4,0)  node[circle,draw=black,text width = 1.4cm,align=center] (B)
+              {\proc{P_1}{ 
+                         }
+              };
+
+ \draw (4,-2) node[circle,draw = black,text width = 1.6cm,align=center,dotted] (D)
+              {\proc{O_2}{}
+              };
+
+ \draw (0,-2) node[circle,draw=black,text width = 1.6cm,align=center,dotted] (E)
+              {\proc{O_1}{}
+              };
+
+ \draw (2,-1) node[circle,draw=black,text width = 1.4cm,align=center] (C) 
+              {\proc{P_3}{
+                         }
+              };
+
+ \draw[-,draw=black,very thick] (A.east) -- (C.west) 
+    node[midway,above=1pt,sloped,fill=white]   {\llab{ch2}};
+ \draw[-,draw=black,very thick] (C.east) -- (B.west) 
+    node[midway,above=1pt,sloped,fill=white]   {\llab{ch1}};
+ \draw[-,draw=black,very thick,dotted] (B.south) -- (D.north) 
+    node[midway,above=1pt,sloped,fill=white]   {\plab{s2}};
+ \draw[-,draw=black,very thick,dotted] (A.south) -- (E.north) 
+    node[midway,above=1pt,sloped,fill=white]   {\plab{s1}};
+
+\end{tikzpicture}
+\end {center}
+\caption{{\sf get-put} Example} 
+\label{fig:Conc_getput}\end{figure}
 \end {document}
 

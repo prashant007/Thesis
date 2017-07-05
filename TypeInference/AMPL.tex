@@ -100,8 +100,10 @@
 \tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
                      minimum height=1.8cm,text centered, draw=black]
 \tikzstyle{arrow} = [very thick,->,>=stealth]
-In the previous chapters the different stages of interpretation of MPL programs (listed in Figure in \ref {fig:CSAM}) have been described. In this chapter, the last stage of interpretation, namely running MPL programs on MPL's abstract machine (called AMPL) is discussed.
-~~\\
+In the previous chapters the different stages of interpretation of MPL programs (listed in Figure in \ref {fig:CSAM}) have been described. The last stage of interpretation deals with running unning MPL programs on MPL's abstract machine (called AMPL). However, before an MPL program can be run on AMPL, it needs to be translated to a list of commands that AMPL can execute. This translated code is called AMPL code.
+~~\\~~\\ 
+In this chapter, the translation of MPL to AMPL code and the execution of the AMPL code is discussed.
+
 \begin{figure}[h!]
 \begin {center}
 \begin{tikzpicture}[scale = 1.5,every node/.style={very thick},node distance=2cm]
@@ -113,18 +115,16 @@ In the previous chapters the different stages of interpretation of MPL programs 
  \node (LL) [stage,left of=CP,xshift=-2.2cm,text width = 1.8cm] 
             {{\sf \small Lambda Lifting}};
  \node (AM) [stage,left of=LL,xshift=-2.2cm,text width = 1.8cm,fill=gray!30] 
-            {{\sf \small Running programs on AMPL}};
+            {{\sf \small Translation to AMPL \& Running Programs}};
  \draw [arrow] (LE) -- (PA);
  \draw [arrow] (PA) -- (TC);
  \draw [arrow] (TC) -- (CP);
  \draw [arrow] (CP) -- (LL);
  \draw [arrow] (LL) -- (AM);
 \end{tikzpicture}
-\caption{Compilation Stages} \label{fig:CSAM}
+\caption{Interpretation Stages of MPL} \label{fig:CSAM}
 \end{center}
 \end{figure}
-~~\\
-
 \subsection {Introduction to Abstract Machines}
 Abstract machines are useful conceptual tools when implementing a programming language because they omit the many details of real machines and thus bridge the gap between the programming language and the physical machine. An added advantage of abstract machines is the ease of porting the language to different platforms. An abstract machine one reduces the problem of porting the programming language to the problem of porting the abstract machine. This is an easy task as the abstract machines are simpler and smaller than the programming language itself. This strategy was used by the programming language Java which used the abstract machine {\bf Java Virutal Machine (JVM)}. Some famous examples of {\em abstract machines} are:
 \begin{itemize} 
