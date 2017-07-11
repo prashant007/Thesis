@@ -45,14 +45,14 @@
 
 \maketitle
 \section {Lambda Lifting} 
-Once {\em pattern-matching compilation} is completed, the next step in the compilation of MPL programs is {\em lambda lifting transformation}. MPL allows the programmers to define local functions. However, CMPL doesn't allow for local function defintions and thus all the local MPL functions should be put in the global scope. {\em Lambda Lifting} is the transformation that puts the local functions in the global scope.
+Once pattern-matching compilation is completed, the next step in the compilation of MPL programs is lambda lifting transformation. MPL allows the programmers to define local functions. However, CMPL doesn't allow for local function defintions and thus all the local MPL functions should be put in the global scope. Lambda Lifting is the transformation that puts the local functions in the global scope.
 
 \section {Examples of Local Functions in MPL}
 
 
-The {\em defn} and {\em let} are the two MPL constructs that allow for local function defintions. The difference between the local functions defined with {\em defn} and {\em let} is that the functions defined with {\em let} can have {\em free variables} where as the ones defined with {\em defn} can't have {\em free variables}. {\em free variables} of a function are the variables used inside a function definition that are not elements of the set of that function's parameters. 
+The {\sf defn} and {\sf let} are the two MPL constructs that allow for local function defintions. The difference between the local functions defined with {\sf defn} and {\sf let} is that the functions defined with {\sf let} can have {\em free variables} where as the ones defined with {\em defn} can't have {\em free variables}. {\em free variables} of a function are the variables used inside a function definition that are not elements of the set of that function's parameters. 
 ~~\\~~\\ 
-Examples highlighting the difference between the local functions defined using {\em defn} and {\em let} have been given in Table \ref {LoclFuns}. The local function definition {\em myFun} in the {\em where} clause of {\em defn} statement doesn't have any free variables. However, functions {\em xFun} and {\em yFun} in the {\em where} clause of {\em let} statement have free variables $n_1$ and $n_2$ respectively.
+Examples highlighting the difference between the local functions defined using {\em defn} and {\sf let} have been given in Table \ref {LoclFuns}. The local function definition {\em myFun} in the {\em where} clause of {\sf defn} statement doesn't have any free variables. However, functions {\em xFun} and {\em yFun} in the {\em where} clause of {\sf let} statement have free variables $n_1$ and $n_2$ respectively.
 
 \begin{table}[h!]
 \begin{center}
@@ -118,7 +118,7 @@ fun rFun =
 
 
 \section {Lambda Lifting in MPL}
-As seen earlier {\em lambda lifting} is the transformation that puts the local functions in the global scope. The complexity of the transformation arises from the presence of {\em free variables} in the function definitions. If a function has free variables in its definition, then putting it in global scope will make the free variables out of scope which would result in a semantic error. Example - This can be seen in the local functions {\em xFun} {\em yFun} defined with {\em let} in the Table \ref{LoclFuns} having $n_1$ and $n_2$ as free variables respectively. If $xFun$ and $yFun$ were to be moved to the same scope level as {\em rFun} then variables $n_1$ and $n_2$ will become out scope in their respective functions.
+As seen earlier {\em lambda lifting} is the transformation that puts the local functions in the global scope. The complexity of the transformation arises from the presence of {\em free variables} in the function definitions. If a function has free variables in its definition, then putting it in global scope will make the free variables out of scope which would result in a semantic error. Example - This can be seen in the local functions {\em xFun} {\em yFun} defined with {\sf let} in the Table \ref{LoclFuns} having $n_1$ and $n_2$ as free variables respectively. If $xFun$ and $yFun$ were to be moved to the same scope level as {\em rFun} then variables $n_1$ and $n_2$ will become out scope in their respective functions.
 ~~\\~~\\ 
 Therefore, before a function {\em f} is placed in the global scope, it should be ensured that it doesn't contain any {\em free variables}. One way to do this can be to find all the {\em free variables} of {\em f} and append them to the function parameters of f. Now all the free variables of {\em f} become bound and they can be placed in the global scope. This technique is viable except for one flaw. The {\em free variables} of the functions called inside {\em f} also contribute to the free variables of {\em f}. Thus, the {\em free variables} obtained from these functions called inside {\em f} should be unioned with the {\em free variables} directly present in {\em f}. The {\em free variables} calculated as a result of this can be added to the parameter this and the inner scope functions can be {\em lambda lifted}.
 ~~\\~~\\
@@ -131,7 +131,7 @@ free vars (xFun) &= \left\{n_1\right\}~\cup ~free vars (yFun) \\
 \end{align*}
 
 \section{Lambda Lifting Algorithm}\label{LamLiftAlg}
-This algorithm is used to {\em lambda lifts} functions that can have free variables in their definitions. In the case of function defintions in the {\em let} statement that is the case, therefore this algorithm would be required to {\em lambda lift} the function. However, in the case of {\em defn} there are no free variables in the local functions and thus the function can directly be lambda lifted after renaming (the step1 and step 5 of the algorithm). 
+This algorithm is used to {\em lambda lifts} functions that can have free variables in their definitions. In the case of function defintions in the {\sf let} statement that is the case, therefore this algorithm would be required to {\em lambda lift} the function. However, in the case of {\em defn} there are no free variables in the local functions and thus the function can directly be lambda lifted after renaming (the step1 and step 5 of the algorithm). 
 ~~\\~\\ 
 {\em Lambda lifting} consists of the following steps :-
 \begin{enumerate}
@@ -140,7 +140,7 @@ This algorithm is used to {\em lambda lifts} functions that can have free variab
     ~~\\~~\\ 
     The parameters of all the function defintions are also renamed with fresh variables to esnure that every function has unique parameters.
     \item {\bf Compute Set Equations for Functions} -
-    For every function {\em f} defined inside the {\em where} clause of the {\em let} statement, the following triple is computed.
+    For every function {\em f} defined inside the {\em where} clause of the {\sf let} statement, the following triple is computed.
     \begin{align*}
     (\left\{free~vars\right\},\left\{bound~vars\right\},[funs~used])
     \end{align*}
@@ -155,7 +155,7 @@ This algorithm is used to {\em lambda lifts} functions that can have free variab
     \end{align*}
     A list of {\em Set Equations} are obtained as a result of this step. 
     
-    \item {\bf Solving the Set Equations} - Once the list of {\em Set Equations} is generated, the equations are then solved to get the {\em free variables} for all the functions defined inside the {\em where} clause of the {\em let} statement.
+    \item {\bf Solving the Set Equations} - Once the list of {\em Set Equations} is generated, the equations are then solved to get the {\em free variables} for all the functions defined inside the {\em where} clause of the {\sf let} statement.
     \begin{alltt}
     for every set equation (f,(fv,bv,fl)) in set equation list sl do 
         for every function name n in fl do
@@ -175,7 +175,7 @@ This algorithm is used to {\em lambda lifts} functions that can have free variab
 
 The first example {\em lambda lifting} transformation is demonstrated (in Table \ref  {LamLiftDefn}) on the program defined with the {\em defn} construct from Table \ref {LoclFuns}. Since, there are no {\em free variables} present in the local functions in the  {\em where} clause of {\em defn}, the local functions can directly be pushed to the global scope once the function and argument renaming has been completed.
 ~~\\~~\\
-Second example demonstrates {\em lambda lifting} local functions defined using {\em let} statement in Table \ref {LamLiftLet}. The program defined using {\em let} from Table \ref{LoclFuns}  has been chosen to demonstrate this.
+Second example demonstrates {\em lambda lifting} local functions defined using {\sf let} statement in Table \ref {LamLiftLet}. The program defined using {\sf let} from Table \ref{LoclFuns}  has been chosen to demonstrate this.
 
 \begin{table}[h!]
 \begin{center}
@@ -368,7 +368,7 @@ fun fn3 =
 \tabularnewline
 \hline
 \end{tabular}
-\caption{Local functions defined with {\em let} construct}
+\caption{Local functions defined with {\sf let} construct}
 \label{LamLiftLet}
 \end{center}
 \end{table}
