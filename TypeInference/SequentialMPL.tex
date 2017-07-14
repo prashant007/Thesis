@@ -1,0 +1,74 @@
+\documentclass[11pt]{article}
+
+\title{Lambda Lifting Transformation}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{proof}
+\usepackage {alltt}
+
+\usepackage{graphicx} % Allows including images
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+\usepackage{listings}
+\usepackage[export]{adjustbox}
+\usepackage{verbatim}
+\tikzset
+  {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
+
+
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
+                     minimum height=1.8cm,text centered, draw=black]
+\tikzstyle{arrow} = [very thick,->,>=stealth]
+
+\begin{document}
+
+\maketitle
+\section {Sequential MPL Constructs} 
+Sequential MPL constructs can be divided into three categories:
+\begin{itemize}
+  \item {\bf Data Type Constructs:} These constructs are used with data types. They are {\sf case}, {\sf constructor} and {\sf fold} constructs.
+  \item {\bf Codata Type Constructs:}
+  \item {\bf Non Data/Codata Constructs:} These are general MPL constructs that are not used with either data or codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant} and {\sf if} constructs.
+\end{itemize}
+In this following sections non data/codata constructs are discussed first, followed by data type constructs and codata type constructs.
+\section {Non Data/Codata Constructs}
+These are general MPL constructs that are not used with either data or codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant} and {\sf if} constructs.
+\subsection {function call construct}
+\subsection {if construct}
+\subsection {variable construct}
+\subsection {constant construct}
+\subsection {where construct}
+
+\section {Data Type Constructs}
+These constructs are used with data types. They are {\sf case}, {\sf constructor} and {\sf fold} constructs.
+\subsection {case construct}
+\subsection {data constructor construct}
+\subsection {fold construct}
+
+\section {Codata Type Constructs}
+ These constructs are used with codata types. They are {\sf record} and {\sf destructor} constructs.
+\subsection {record construct}
+\subsection {destructor construct}
+\subsection {product construct}
+\end {document}

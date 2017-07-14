@@ -45,10 +45,10 @@
 
 \maketitle
 \section {Lambda Lifting} 
-Once pattern-matching compilation is completed, the next step in the interpretation of MPL programs is the lambda lifting transformation. MPL allows the programmers to define local functions. However, Core MPL doesn't allow for local function defintions. Thus all the local MPL functions must be put in the global scope. Lambda Lifting is the transformation that puts the local functions in the global scope. The {\sf defn} and {\sf where} are the two MPL constructs that allow for local function defintions. 
+Once pattern-matching compilation is completed, the next step in the interpretation of MPL programs is lambda lifting. MPL allows the programmers to define local functions. However, Core MPL doesn't allow for local function definitions. Thus all the local MPL functions must be put in the global scope. Lambda lifting is the transformation that puts the local functions in the global scope. The {\sf defn} and {\sf where} are the two MPL constructs that allow for local function definitions. 
 ~~\\~~\\ 
-In this chapter, the difference between the {\sf defn} and {\sf where} constructs, and the strategy for lambda lifting of each contruct is discussed. Tha algorithm for lambda lifting was given Thomas Johnsson. The algorithm described in the chapter is an adaptation of Johnsson's algorithm customised for MPL.
-\begin{figure}[h!]
+In this chapter, the difference between the {\sf defn} and {\sf where} constructs, and the strategy for lambda lifting of each contruct is discussed. An algorithm for lambda lifting was given Thomas Johnsson. The algorithm described in the chapter is an adaptation of Johnsson's algorithm customised for MPL.
+\begin{figure}[!h]
 \begin {center}
 \begin{tikzpicture}[scale = 1.5,every node/.style={very thick},node distance=2cm]
  \node (LE) [stage] {{\sf \small Lexing}};
@@ -73,10 +73,10 @@ In this chapter, the difference between the {\sf defn} and {\sf where} construct
 
 
 \section {Local Function Definitions with defn and where Constructs}
-Although both {\sf defn} and {\sf where} can be used to define local functions, there is a difference in what these constructs are meant for and the structure of the local functions itself. This has been described in Section \ref {lam:defnOverview} and Section \ref {lam:whereOverview} with examples.
+Although both {\sf defn} and {\sf where} can be used to define local functions, there is a significant difference these constructs: the {\sf defn} construct doesn't allow local variables while the main of the {\sf where} construct is to allow non local variables. This has been described in Section \ref {lam:defnOverview} and Section \ref {lam:whereOverview} with examples.
 
 \subsection {defn Construct}\label{lam:defnOverview}
-{\sf defn} constructs are used to introduce the notion of a module system in MPL. Table \ref {lam:defnExample} shows an example of a pattern matching compiled MPL program that uses the {\sf defn} construct. The program takes two lists and returns backs a list where each element of the final list is the sum of the corresponding elements of the original list. In case of lists of unequal length, the sum of the corresponding elements is calculated till the elements in the smaller list is exhausted and the remaninder of the elements in the longer list are ignored. 
+The {\sf defn} construct is used to modularize programs in MPL. Table \ref {lam:defnExample} shows an example of a pattern matching compiled MPL program that uses the {\sf defn} construct. The program takes two lists and returns backs a list where each element of the final list is the sum of the corresponding elements of the original list. In case of lists of unequal length, the sum of the corresponding elements is calculated till the elements in the smaller list is exhausted and the remaninder of the elements in the longer list are ignored. 
 ~~\\~~\\
 As can be seen in Table \ref {lam:defnExample}, {\sf defn} consists of two components:
 \begin{itemize}
@@ -84,7 +84,7 @@ As can be seen in Table \ref {lam:defnExample}, {\sf defn} consists of two compo
 
   \item {\bf where clause of defn}: There may be some definitions that are required only for the definitions in the main body of the {\sf defn} construct. These definitions are written in the {\bf where} clause of the {\sf defn} construct. Scope of a definition in the {\bf where} clause of {\sf defn} is:
   \begin{itemize}
-    \item other defintions in the where clause, and
+    \item other definitions in the where clause, and
     \item the definitions in the main body of the {\sf defn} construct.
   \end{itemize}
 \end{itemize}
@@ -92,7 +92,7 @@ For example, in Table \ref {lam:defnExample}, the {\bf List} data type is in the
 ~~\\ ~~\\
 In Section \ref {lam:algDefn}, the lambda lifting algorithm for the {\sf defn} construct is discussed.
 
-\begin{table}[h!]
+\begin{table}[!h]
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{5in}
@@ -137,7 +137,7 @@ In Section \ref {lam:algDefn}, the lambda lifting algorithm for the {\sf defn} c
 Function {\bf exFun} has a local variable {\bf ans} and two local functions {\bf helpFun1} and {\bf helpFun2} defined using the {\sf where} construct. The local variable and local functions are visible only in either the function body or the body of the {\sf where} construct itself.
 ~~\\~~\\ 
 An important thing to notice in the example in Table \ref {lam:whereExample} is that both functions {\bf helpFun1} and {\bf helpFun2} have free variables. Free variables of a function are the set of variables used in the function body that are not the elements of the set of parameters of that function rather they are defined in a higher scope. Free variables for {\bf helpFun1} and {\bf helpfun2} are \{n1\} and \{n1,n2\} respectively.
-\begin{table}[h!]
+\begin{table}[!h]
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{3.8in}
@@ -172,7 +172,7 @@ An important thing to notice in the example in Table \ref {lam:whereExample} is 
 \label{lam:whereExample}
 \end{center}
 \end{table}
-\begin{table}[h!]
+\begin{table}[!h]
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{3.8in}
@@ -181,8 +181,11 @@ An important thing to notice in the example in Table \ref {lam:whereExample} is 
 
   fun exFun = 
       n1,n2,list -> 
-           helperFun1 (list)
+          ans() 
         where
+          fun ans =
+                 -> helperFun1 (list)
+
           fun helpFun1 = 
               ls -> case ls of 
                       Nil -> n1
@@ -208,20 +211,22 @@ An important thing to notice in the example in Table \ref {lam:whereExample} is 
 ~~\\~~\\
 Section \ref {lam:algWhere} deals with the lambda lifting of local function definitions defined with {\sf where} construct. The lambda lifting algorithm for {\sf where} construct is different from that of the {\sf defn} construct because local functions defined using {\sf where} can have free variables where as those defined using {\sf defn} can't have free variables.
 ~~\\~~\\
-Before one proceeds to lambda lifting, all the local variables introduced in the {\sf where} clause ({\bf ans} in Table \ref {lam:whereExample}) need to be substituted with their corresponding sequential terms. Program in Table \ref {lam:whereExVarsubs} is obtained as a result of substituting the variable in the program in Table \ref {lam:whereExample} where {\bf ans} has been replaced in the function body with the sequential term {\bf helperFun1(list)}.
+Before one proceeds to lambda lifting, all the local variables introduced in the {\sf where} clause ({\bf ans} in Table \ref {lam:whereExample}) should be converted to constant functions (functions of arity 0). Once a local variable definition is converted to a constant function, to use this variable in the function body one needs to make a function call to the corresponding constant function. Program in Table \ref {lam:whereExVarsubs} is obtained as a result of 
+making locally defined variable {\bf ans} a constant function.
+
 
 \section {Lambda Lifting Local Functions of defn Construct}\label{lam:algDefn}
 
-A naive approach to lambda lifting the local functions of {\sf defn} construct would be to directly put all the definitions in the {\bf where} clause of the {\sf defn} construct  and the defintions in {\bf main body} of the {\sf defn} construct, in the global scope. However, there is a problem with this approach as the names of the function definitions in the {\bf where} clause of the {\sf defn} construct may be the same as the names of the function defintions in the global scope. Thus, before the function definitions of the {\bf where} clause of the {\sf defn} construct are pushed to global scope, they must be renamed to an unique new global name.
+A naive approach to lambda lifting the local functions of {\sf defn} construct would be to directly put all the definitions in the {\bf where} clause of the {\sf defn} construct  and the definitions in {\bf main body} of the {\sf defn} construct, in the global scope. However, there is a problem with this approach as the names of the function definitions in the {\bf where} clause of the {\sf defn} construct may be the same as the names of the function definitions in the global scope. Thus, before the function definitions of the {\bf where} clause of the {\sf defn} construct are lifted to global scope, they must be renamed to an unique new global name.
 ~~\\~~\\ 
-Steps in lambda lifting the local functions of {\sf defn} construct can be listed as below:
+Steps in lambda lifting the local functions of {\sf defn} construct are be listed as below:
 \begin{itemize}
   \item Rename the function names of the function definitions in the {\sf where} clause to unique new global names. Once functions are renamed, the function calls made with old names should be altered to reflect the name change.
   \item The definitions in the {\bf main body} and the {\bf where} clause of defn can now be lifted to the outermost scope.
 \end{itemize}
 The steps have been applied to function definitions in the {\bf where} clause of the {\sf defn} construct in the program in Table \ref {lam:defnExample}. These steps have been shown in Table \ref {lam:LamLiftDefn}.
 
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|}\hline\\ 
 {\bf Rename local function helperFun of {\sf defn} to uniqNm1}\\~~\\  
@@ -253,7 +258,7 @@ The steps have been applied to function definitions in the {\bf where} clause of
 \end{alltt} 
 \end {minipage} \\ 
 \hline \\
-{\bf Push the defintions of {\sf defn} to the global scope}\\~~\\  
+{\bf Push the definitions of {\sf defn} to the global scope}\\~~\\  
 \hline
 \begin{minipage}{5in}
 \begin{alltt}
@@ -290,14 +295,14 @@ The steps have been applied to function definitions in the {\bf where} clause of
 \end{table}
 
 \section {Lambda Lifting Local Functions of where Construct}\label{lam:algWhere}
-If one tries lifting the local functions of the {\sf where}, the free variables in the local functions of the {\sf where} construct will no longer be in scope. The lambda lifting algorithm for the {\sf where} construct is thus more complicated than that for the {\sf defn} construct because of the presence of free variables in the local function definitions of the {\sf where} construct.
+If one tries lifting the local functions of the {\sf where}, the free variables in the local functions of the {\sf where} construct will no longer be in scope. The lambda lifting algorithm for the {\sf where} construct is thus more complicated than that for the {\sf defn} construct because of the presence of non-local variables in the function definitions of the {\sf where} construct.
 ~~\\~~\\ 
 Lambda lifting algorithm for the local functions of the {\sf where} construct consists of the following steps:
 \begin{enumerate}
     \item {\bf Rename functions and their parameters}: 
     All the function names of the local function definitions in the {\sf where} clause are renamed uniquely to ensure that the local functions have a unique name. This is done because before lambda lifting transformation is performed, different functions in the different scopes may have the same name without any ambiguity. However, once lambda lifting transformation is performed they will be in the same scope and thus need unique names. Care should be taken to convert the function calls made with old function names to function calls with new function names.
     ~~\\~~\\ 
-    The parameters of all the function defintions are also renamed with fresh variables to esnure that every function has unique parameters. This step is required for the third step of the algorithm.
+    The arguments of all the function definitions are also renamed with fresh variables to esnure that every function has unique parameters. This step is required for the third step of the algorithm.
     \item {\bf Compute Set Equations for functions}:
     For every local function {\bf f} defined in the {\em where} construct, the following triple is computed.
     \begin{align*}
@@ -305,8 +310,8 @@ Lambda lifting algorithm for the local functions of the {\sf where} construct co
     \end{align*}
     \begin{itemize}
         \item {\bf free vars} are the free variables of function {\bf f}.
-        \item {\bf bound vars} are the parameters of function {\bf f}. 
-        \item {\bf funs used}  are the functions called made inside {\bf f}.
+        \item {\bf bound vars} are the arguments of function {\bf f}. 
+        \item {\bf funs used}  are the functions called inside {\bf f}.
     \end{itemize}
     The pair of a function name and the triple for that function is called a {\bf set equation} of the function.
     \begin{align*}
@@ -314,26 +319,25 @@ Lambda lifting algorithm for the local functions of the {\sf where} construct co
     \end{align*}
     A set of {\bf set equations} are obtained as a result of this step. 
     
-    \item {\bf Solve the Set Equations using fixed point calculation method}: The aim of this step is to generate the set of all the free variables for a function ${\bf f}$. This set not only contains the free variables that are directly present in the body of the function ${\bf f}$ but also the set of free variables present in the body of functions called inside ${\bf f}$.
+    \item {\bf Solve the Set Equations using a fixed point calculation}: The aim of this step is to generate the set of all the free variables for a function ${\bf f}$. This set not only contains the free variables that are directly present in the body of the function ${\bf f}$ but also the set of free variables present in the body of functions called inside ${\bf f}$.
     ~~\\~~\\
-    Once the set of {\bf set squations} corresponding to the local functions defined in the {\sf where} is generated, the equations are then solved to get the all the free variables for these functions. The set equations are solved using the {\bf fixed point calculation method}.
+    Once the set of set equations corresponding to the local functions defined in the {\sf where} is generated, the equations are then solved to get the all the free variables for these functions. The set equations are solved using a fixed point calculation.
     ~~\\~~\\ 
     The fixed point of a function $\mathbf{p}$ is a value $\mathbf{x}$, such that
     \begin{align*}
     \mathbf{p~~x~=~x}
     \end{align*}
-    The algorithm for solving the set equations has been discussed in Figure \ref {lam:solvesetEqnOut}. 
-    The function ${\bf solveEqns}$ takes a set of set equations and returns back a set of solved set equations. Solved set equation of a function symbol ${\bf f}$ is the set equation that contains the set of all the free variables corresponding to ${\bf f}$.
+    The algorithm for solving the set equations is discussed in Figure \ref {lam:solEqn}. The function ${\bf solveEqns}$ takes a set of set equations and returns back a set of solved set equations. Solved set equation of a function symbol ${\bf f}$ is the set equation that contains the set of all the free variables corresponding to ${\bf f}$.
     ~~\\~~\\ 
-    Function ${\bf solveEqn}$ in Figure  \ref {lam:solvesetEqnOut} solves a set equation with respect to the original set of set equations. ${\bf solveEqn}$ iteratively changes the set equation it is trying to solve until the {\bf fixed point condition} for that set equation is achieved. The fixed point condition for a set equation is that the pair of the set equation being solved and the original set of set equations don't change after an iteration. The free variable set associated with the set equation of function ${\bf f}$ when the fixed point condition is reached is the set of all the free variables for ${\bf f}$.
+    Function ${\bf solveEqn}$ in Figure  \ref {lam:solEqn} solves a set equation with respect to the original set of set equations. ${\bf solveEqn}$ iteratively changes the set equation it is trying to solve until the fixed point condition for that set equation is reached. The fixed point condition for a set equation is that the pair of the set equation being solved and the original set of set equations don't change after an iteration. The free variable set associated with the set equation of function ${\bf f}$ when the fixed point condition is reached is the set of all the free variables for ${\bf f}$.
     ~~\\~~\\
-    During every iteration in the solution of the set equation for function symbol ${\bf f}$, the set of free variables and the set of function calls made inside ${\bf f}$ are changed. These are respectively the first and third element in the tuple associated with function symbol {\bf f} in the set equation.
+    During every iteration in solving of the set equations for function symbol ${\bf f}$, the set of free variables and the set of function calls made inside ${\bf f}$ are changed. These are respectively the first and third element in the tuple associated with function symbol {\bf f} in the set equation.
     ~~\\~~\\
-    Function ${\bf fixFun}$ in Figure  \ref {lam:solvesetEqnOut} does the iterative change to the set equation of {\bf f} by performing the following actions for every function ${\bf g}$ which is a member of third element of the tuple associated with {\bf f}:
+    Function ${\bf fixFun}$ in Figure  \ref {lam:solEqn} does the iterative change to the set equation of {\bf f} by performing the following actions for every function ${\bf g}$ which is a member of third element of the tuple associated with {\bf f}:
     \begin {itemize}
       \item Lookup {\bf g} and find its associated tuple of free variables, bound variables and function calls.
       \item The modified free variable set for {\bf f} is the union of sets of free variables for {\bf f} and {\bf g} with the set of bound variables of {\bf f} removed from the union.
-      \item The modified function call set is the union of the function call set of {\bf f} and {\bf g} with the single set $\mathbf\{g\}$ removed from the union.
+      \item The modified function call set is the union of the function call set of {\bf f} and {\bf g} with the singleton set $\mathbf\{g\}$ removed from the union.
       \item The bound variable set remains unmodified.
     \end {itemize}
 
@@ -349,9 +353,11 @@ Lambda lifting algorithm for the local functions of the {\sf where} construct co
 
 
     solveEqn :: \((Set Eqn,\{Set Eqn\}) -> Set Eqn\)
-    solveEqn (s,es)
-        | fixFun (s,es) == (s,es) = s  -- fixed point condition
-        | otherwise = solveEqn(fixFun (s,es))
+    solveEqn ((f,(fv,bv,fl)),es) =
+        ((f,(fv',bv',fl')),es') <- fixFun ((f,(fv,bv,fl)),es) 
+        case fv' == fv of   -- fixed point condition (fv doesn't change)
+          True  -> (f,(fv',bv',fl'))
+          False ->solveEqn ((f,(fv',bv',fl')),es')
 
 
     fixFun :: \((Set Eqn,\{Set Eqn\}) -> (Set Eqn,\{Set Eqn\})\) 
@@ -364,8 +370,8 @@ Lambda lifting algorithm for the local functions of the {\sf where} construct co
         output: ((f,(fv',bv,fl')),es)
 
     \end{alltt}
-  \label{lam:solvesetEqnOut}
   \caption{Solving Set Equations using Fixed Point Calculation}
+    \label{lam:solEqn}
   \end{figure} 
 
  \item {\bf Add the free variables to their corresponding functions}: Once all the free variables corresponding to a function are generated, they are added to the parameters of the function definition. This ensures that there are no free variables in the function body. Since the arity of the function has changed, the arguments of the function call must be expanded with the free variables of that function.
@@ -373,9 +379,9 @@ Lambda lifting algorithm for the local functions of the {\sf where} construct co
 
 \item {\bf Push the local functions to global scope}: Since there are no free variables in the local functions any more they can be pushed to the global scope. This is the final step in the lambda lifting transformation. 
 \end{enumerate}
-The step wise lambda lifting transformation for the local function in the {\sf where} construct of function {\bf exFun} defined in Table \ref {lam:whereExample} is shown in Tables \ref {lam:stepWisewhere1} and  \ref {lam:stepWisewhere2}.
+The stepwise lambda lifting transformation for the local function in the {\sf where} construct of function {\bf exFun} defined in Table \ref {lam:whereExample} is shown in Tables \ref {lam:stepWisewhere1} and  \ref {lam:stepWisewhere2}.
 
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 {\bf Original Program}\\ 
@@ -386,8 +392,11 @@ The step wise lambda lifting transformation for the local function in the {\sf w
 
   fun exFun = 
     n1,n2,list -> 
-        helperFun1 (list)
+        ans()
       where
+        fun ans =
+               -> helperFun1 (list)
+
         fun helperFun1 = 
             ls -> case ls of 
                     Nil -> n1
@@ -413,21 +422,24 @@ The step wise lambda lifting transformation for the local function in the {\sf w
 
   fun exFun = 
     n1,n2,list -> 
-        helperFun1 (list)
+        unq_fn1()
       where
-        fun unq_fn1 = 
+        fun unq_fn1 =
+            -> unq_fn2(list)
+
+        fun unq_fn2 = 
           u1 -> case ls of 
                   Nil -> n1
-                  Cons(x,xs) -> unq_fn2(u1)
+                  Cons(x,xs) -> unq_fn3(u1)
 
-        fun unq_fn2 =
+        fun unq_fn3 =
           u2 -> 
             case ls of
               Nil -> \(0\)
               Cons(u3,u4) ->
                 if mod(u3,2) == \(0\) 
-                  then n1 + unq_fn2(u4)
-                  else n2 + unq_fn2(u4) 
+                  then n1 + unq_fn3(u4)
+                  else n2 + unq_fn3(u4) 
 
 \end{alltt} 
 \end {minipage}\\ 
@@ -438,9 +450,9 @@ The step wise lambda lifting transformation for the local function in the {\sf w
 \begin{alltt}
 
 
-SetEqn(unq_fun1) = (unq_fun1,(\(\left\{n1\right\}\),\(\left\{u1\right\}\),[unq_fun2]))
-
-SetEqn(unq_fun2) = (unq_fun2,(\(\left\{n1,n2\right\}\),\(\left\{u2\right\}\),[unq_fun2]))
+SetEqn(unq_fun1) = (unq_fun1,(\(\left\{list\right\}\),\(\left\{\right\}\),[unq_fun2]))
+SetEqn(unq_fun2) = (unq_fun2,(\(\left\{n1\right\}\),\(\left\{u1\right\}\),[unq_fun3]))
+SetEqn(unq_fun3) = (unq_fun3,(\(\left\{n1,n2\right\}\),\(\left\{u2\right\}\),[unq_fun3]))
 
 \end{alltt} 
 \end {minipage}
@@ -453,7 +465,7 @@ SetEqn(unq_fun2) = (unq_fun2,(\(\left\{n1,n2\right\}\),\(\left\{u2\right\}\),[un
 \end{table}
 
 
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 {\bf Step 3: Solve Set Equations}\\ 
@@ -464,12 +476,12 @@ SetEqn(unq_fun2) = (unq_fun2,(\(\left\{n1,n2\right\}\),\(\left\{u2\right\}\),[un
 
 The solved set equations are as follows:
 
-SetEqn(unq_fun1) = (unq_fun1,(\(\left\{n1,n2\right\}\),\(\left\{u1\right\}\),[]))
+SetEqn(unq_fun1) = (unq_fun1,(\(\left\{list,n1,n2\right\}\),\(\left\{\right\}\),[unq_fun2]))
+SetEqn(unq_fun2) = (unq_fun2,(\(\left\{n1,n2\right\}\),\(\left\{u1\right\}\),[unq_fun3]))
+SetEqn(unq_fun3) = (unq_fun3,(\(\left\{n1,n2\right\}\),\(\left\{u2\right\}\),[unq_fun3]))
 
-SetEqn(unq_fun2) = (unq_fun2,(\(\left\{n1,n2\right\}\),\(\left\{u2\right\}\),[unq_fun2]))
-
-Thus, the free variables for both function unq_fun1 and 
-unq_fun2 are (\(\left\{n1,n2\right\}\).
+Thus, the free variables for unq_fun1 are \(\left\{list,n1,n2\right\}\).
+For function unq_fun2 and unq_fun3 are \(\left\{n1,n2\right\}\).
 
 \end{alltt} 
 \end {minipage} \\ 

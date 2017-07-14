@@ -21,36 +21,16 @@
 \BeforeBeginEnvironment{tabular}{\begin{center}\small}
 \AfterEndEnvironment{tabular}{\end{center}}
 
-\mdfdefinestyle{MyFrame}{%
-    linecolor=black,
-    linewidth=1pt
-    innertopmargin=\baselineskip,
-    innerbottommargin=\baselineskip,
-    leftmargin  = 2cm
-    rightmargin = 2cm,
-    frametitlealignment = \center
-    }
-
-\mdfdefinestyle{MyFrameSp}{%
-    linecolor=black,
-    linewidth=1pt
-    innertopmargin=\baselineskip,
-    innerbottommargin=\baselineskip,
-    leftmargin  = .5cm
-    rightmargin = .5cm,
-    frametitlealignment = \center
-    }
-
 \begin{document}
 
 \maketitle
 \section {Lambda Lifting} 
-Once pattern-matching compilation is completed, the next step in the compilation of MPL programs is lambda lifting transformation. MPL allows the programmers to define local functions. However, CMPL doesn't allow for local function defintions and thus all the local MPL functions should be put in the global scope. Lambda Lifting is the transformation that puts the local functions in the global scope.
+Once pattern-matching compilation is completed, the next step in the compilation of MPL programs lambda lifting. MPL allows the programmers to define local functions. However, CMPL doesn't allow for local function definitions and thus all the local MPL functions should be put in the global scope. Lambda Lifting is the transformation that puts the local functions in the global scope.
 
 \section {Examples of Local Functions in MPL}
 
 
-The {\sf defn} and {\sf let} are the two MPL constructs that allow for local function defintions. The difference between the local functions defined with {\sf defn} and {\sf let} is that the functions defined with {\sf let} can have {\em free variables} where as the ones defined with {\em defn} can't have {\em free variables}. {\em free variables} of a function are the variables used inside a function definition that are not elements of the set of that function's parameters. 
+The {\sf defn} and {\sf let} are the two MPL constructs that allow for local function definitions. The difference between the local functions defined with {\sf defn} and {\sf let} is that the functions defined with {\sf let} can have {\em free variables} where as the ones defined with {\em defn} can't have {\em free variables}. {\em free variables} of a function are the variables used inside a function definition that are not elements of the set of that function's parameters. 
 ~~\\~~\\ 
 Examples highlighting the difference between the local functions defined using {\em defn} and {\sf let} have been given in Table \ref {LoclFuns}. The local function definition {\em myFun} in the {\em where} clause of {\sf defn} statement doesn't have any free variables. However, functions {\em xFun} and {\em yFun} in the {\em where} clause of {\sf let} statement have free variables $n_1$ and $n_2$ respectively.
 
@@ -131,14 +111,14 @@ free vars (xFun) &= \left\{n_1\right\}~\cup ~free vars (yFun) \\
 \end{align*}
 
 \section{Lambda Lifting Algorithm}\label{LamLiftAlg}
-This algorithm is used to {\em lambda lifts} functions that can have free variables in their definitions. In the case of function defintions in the {\sf let} statement that is the case, therefore this algorithm would be required to {\em lambda lift} the function. However, in the case of {\em defn} there are no free variables in the local functions and thus the function can directly be lambda lifted after renaming (the step1 and step 5 of the algorithm). 
+This algorithm is used to {\em lambda lifts} functions that can have free variables in their definitions. In the case of function definitions in the {\sf let} statement that is the case, therefore this algorithm would be required to {\em lambda lift} the function. However, in the case of {\em defn} there are no free variables in the local functions and thus the function can directly be lambda lifted after renaming (the step1 and step 5 of the algorithm). 
 ~~\\~\\ 
 {\em Lambda lifting} consists of the following steps :-
 \begin{enumerate}
     \item {\bf Rename functions and their parameters} - 
     All the function names are renamed uniquely to ensure that they have an unique name. This is done because before {\em lambda lifting}, different functions in different scopes may have the same name without ambiguity. However, once lambda lifted they will be in the same scope and thus need unique names.
     ~~\\~~\\ 
-    The parameters of all the function defintions are also renamed with fresh variables to esnure that every function has unique parameters.
+    The parameters of all the function definitions are also renamed with fresh variables to esnure that every function has unique parameters.
     \item {\bf Compute Set Equations for Functions} -
     For every function {\em f} defined inside the {\em where} clause of the {\sf let} statement, the following triple is computed.
     \begin{align*}
