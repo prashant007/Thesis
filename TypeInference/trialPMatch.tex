@@ -1,0 +1,1314 @@
+\documentclass[11pt]{article}
+
+\title{Compilation of Pattern-Matching}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{proof}
+\usepackage {alltt}
+
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+\usepackage{listings}
+\usepackage[export]{adjustbox}
+\usepackage{verbatim}
+\tikzset
+  {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
+
+
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\begin{document}
+
+\maketitle
+\section {Compilation of MPL Programs to Core MPL}
+
+Once an MPL program is processed by the lexer and the parser, an Abstract Syntax Tree (AST) is generated which is a faithful representation of the original program. This AST is used for the type inferenece of the MPL program. If the program type checks, the next step in the compilation of MPL programs is to convert this AST to a simpler core language with a reduced set of language constructs, called Core MPL (CMPL).
+~~\\~~\\ 
+The compilation of the AST to the CMPL happens in 2 steps. These steps are listed below in the order they are performed:
+\begin {itemize}
+  \item {\bf Pattern-Matching Compilation} - This steps translates the pattern-matching syntactic sugar that MPL programs have.  
+  \item {\bf Lambda Lifting} - MPL allows the programmers' to define local functions. However, CMPL doesn't allow for local function defintions. Lambda Lifting transformation gets rid of local function defintions in MPL programs and makes all the local function global.
+  %The {\em pattern-matching compiler algorithm} was first given by Lennart Augustsson. However, the version of the algorithm described in the thesis and used in MPL's implementation is due to Philip Wadler.
+\end{itemize}
+In this chapter, the {\bf pattern-matching compiler algorithm} is discussed. 
+~~\\
+\tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
+                     minimum height=1.8cm,text centered, draw=black]
+\tikzstyle{arrow} = [very thick,->,>=stealth]
+\begin{figure}[h!]
+\begin {center}
+\begin{tikzpicture}[scale = 1.5,every node/.style={very thick},node distance=2cm]
+ \node (LE) [stage] {{\sf \small Lexing}};
+ \node (PA) [stage,right of=LE,xshift=2.2cm] {{\sf \small Parsing}};
+ \node (TC) [stage,right of=PA,xshift=2.2cm,text width = 1.8cm] {{\sf \small Type Inferencing}};
+ \node (CP) [stage,below of=TC,yshift=-2.2cm,text width = 1.8cm,fill=gray!20] 
+            {{\sf \small Compiling Pattern Matching}};
+ \node (LL) [stage,left of=CP,xshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Lambda Lifting}};
+ \node (AM) [stage,left of=LL,xshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Running programs on AMPL}};
+ \draw [arrow] (LE) -- (PA);
+ \draw [arrow] (PA) -- (TC);
+ \draw [arrow] (TC) -- (CP);
+ \draw [arrow] (CP) -- (LL);
+ \draw [arrow] (LL) -- (AM);
+\end{tikzpicture}
+\caption{Compilation Stages : Pattern Matching Compilation} \label{fig:Pmatch:Overview}
+\end{center}
+\end{figure}
+
+\section {Examples of Pattern-Matching in MPL}
+MPL allows the programmer to define readable functions using its the pattern-matching syntax. Figure  \ref {fig:Pmatch_fDefn} shows a function ${\bf f}$ defined with ${\mathbf {m}}$ lines of pairs of ${\mathbf {n}}$ patterns and a sequential term. A line ${\mathbf {i}}$ consisting of the pair of patterns ${\mathbf{p_{i,1},\ldots,p_{i,n}}}$ and the term $\mathbf{t_i}$ is called a {\bf pattern-matching line}. 
+
+\begin{figure}[h!]
+\begin{align*} 
+&fun~~f = \\
+&~~~~ p_{1,1},~\ldots~, ~ p_{1,n} ~\to ~t_1 \\
+&~~~~~~~~~~~ \ldots \\
+&~~~~ p_{m,1},~\ldots~, ~ p_{m,n} ~\to ~t_m \\
+\end{align*} 
+\caption{Function Defintion with Pattern Matching} \label{fig:Pmatch_fDefn}
+\end{figure}
+
+A pattern $\mathbf{p_{i,j}}$ can be one of the below patterns:
+\begin{itemize}
+  \item Variable Pattern
+  \item Constructor Pattern
+  \item Record Pattern
+  \item Product Pattern
+\end{itemize}
+A function can have a mixture of these patterns in any given pattern matching line. The constructor, record and product patterns may have other patterns in their body.
+~~\\~~\\
+The pattern-matching compilation algorithm gets rid of all the constructor patterns from a function definition that uses pattern-matching syntactic sugar and replaces it with {\sf case} statements. 
+~~\\~~\\ 
+Table \ref {Pmatch:Ex1} provides examples of functions defined with patterns. It also shows the pattern matching compiled form of these example functions. 
+~~\\~~\\
+$\mathbf{append}$ function definition in Table \ref {Pmatch:Ex1} appends two lists. It uses a mixture of constructor pattern (first argument) and variable pattern (second argument). 
+~~\\~~\\ 
+$\mathbf{pairEx}$ function takes two input arguments, a pair of list of integers and a pair of integers. Its output is the following:
+\begin{itemize}
+  \item When both the lists of the first argument are empty, the output is the integer pair in the second argument.
+  \item When the first list is non empty and second list is empty, the output is a pair. The first element of this pair is the head of the first list of the first argument of the function. The second element of the pair is the second element of the second parameter of the function.
+  \item The case when the first list is empty and the second list is non empty is symmetric to the last case.
+  \item If both the lists of the first pair are non empty then the two elements of the output pair are the head of the first and the second list respectively.
+\end{itemize}
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function defintion with pattern-matching} & {\bf Function definition with case construct} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+\begin{alltt}
+
+
+fun append :: [A],[A] -> [A] = 
+  [],   ys   -> ys 
+  x:xs, ys   -> x:append (xs,ys) 
+
+
+\end{alltt}
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+
+
+fun append :: [A],[A] -> [A] = 
+  xl,yl -> 
+    case xl of
+      Nil -> yl
+      Cons(x,xs) -> Cons(x,append(xs,yl))
+
+
+\end{alltt} 
+\end {minipage}\\
+\hline 
+\begin{minipage}{2.6in}
+\begin{alltt}
+
+
+fun pairEx::<[Int],[Int]>,<Int,Int> -> 
+            <Int,Int> = 
+  <[]  ,[]>,<p,q>   -> <p,q> 
+  <x:xs,[]>,<p,q>   -> <x,q>
+  <[],y:ys>,<p,q>   -> <p,y>
+  <x:xs,y:ys>,<p,q> -> <x,y>
+
+
+\end{alltt}
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+
+
+fun pairEx::<[Int],[Int]>,<Int,Int> -> 
+            (Int,Int) =  
+  <xls,yls>,<p,q> ->
+     case xls of
+       Nil -> 
+         case yls of
+           Nil        -> <p,q>
+           Cons(y,ys) -> <p,y>
+       Cons(x,xs) ->    
+         case yls of
+           Nil        -> <x,q>
+           Cons(y,ys) -> <x,y>  
+
+
+\end{alltt} 
+\end {minipage}\\ 
+\hline 
+\begin{minipage}{2.6in}
+\begin{alltt}
+
+
+fun recEx::InfList([A]) -> 
+           InfList([A]) =
+  (: Head := [],Tail := t :) ->
+    (: Head := [],Tail := recEx(t) :) 
+
+  (: Head := a:as,Tail := t :) ->
+    (: Head := as,Tail := recEx(as) :) 
+
+\end{alltt}
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+
+
+fun recEx::InfList([A]) -> 
+           InfList([A]) =
+  (: Head := x,Tail := t :) ->
+    case x of 
+      [] ->
+        (: Head := [],Tail := recEx(t) :)
+        x:xs ->
+        (: Head := xs,Tail := recEx(xs) :) 
+
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example of Pattern-Matching Compilation}
+\label{Pmatch:Ex1}
+\end{center}
+\end{table}
+
+\section {Pattern Matching Compiler Algorithm}
+In this section, the algorithm for step wise compilation of patterns in a function is described.
+\subsection {Overview of Pattern Matching Compiler Algorithm}
+The pattern matching compilation algorithm is described with the help of {\bf match} notation. {\bf match} notation helps in a clean presentation of the algorithm. The basic steps of the algorithm can be summarised as follows:
+\begin{itemize}
+  \item Represent the body of a function definition (which has patterns) with the {\bf match} notation. Section \ref{Pmatch:match} describes the {\bf match} notation in details. MPL allows for product patterns and record patterns in addition to variable and constructor patterns. The translation of various patterns to {\bf match} has been described in Section \ref {pmatch:fbodytoMatch}.
+  \item Define reduction rules for the {\bf match} notation. A reduction rule is a syntactic rule to transform the {\bf match} notation.
+  \item Apply the reduction rules recursively till a normal form is achieved. The reduction rule that is applied to a {\bf match} notation dependes on its configuration. The different configurations of {\bf match} have been described in Section \ref {Pmatch:RedConfigs}. The reduction rules and the normal form have been described in Section \ref {Pmatch:redRule}.
+\end{itemize}
+The normal form of {\bf match} will the produce a new function body. The new function body uses {\sf case} instead of pattern-matching syntax that the input function body used.
+
+\section {match notation}\label{Pmatch:match}
+The structure of {\bf match} notation has been shown in Figure \ref {fig:Pmatch_fDefn_match}.
+\begin{figure}[!h]
+\begin{align*} 
+&match~~[u_1,u_2,\ldots,u_n] \\
+&\qquad\qquad [\\
+&\qquad\qquad ~~(~[~p_{1,1},~\ldots~, ~ p_{1,n}~],~~t_1) \\
+&\qquad\qquad ~~(~[~p_{2,1},~\ldots~, ~ p_{2,n}~],~~t_2) \\
+&\qquad\qquad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad\qquad ~~(~[~p_{m,1},~\ldots~, ~ p_{m,n}~],~t_m) \\
+&\qquad\qquad ]\\
+&\qquad\qquad E
+\end{align*} 
+\caption{Function Defintion with Pattern Matching} \label{fig:Pmatch_fDefn_match}
+\end{figure}
+~~\\~~\\
+As can be seen in Figure \ref{fig:Pmatch_fDefn_match}, {\bf match} is a function that takes three arguments:
+\begin{itemize}
+  \item First argument is a list of fresh variables.
+  \item Second argument is the list of pair of patterns and a term.
+  \item Third argument is a sequential term. Usually it is the default term to be used with the missing constructors of a data type in pattern-matching.
+\end{itemize}
+\section {Converting Function Body to match Function}\label{pmatch:fbodytoMatch}
+This is a step in pattern-matching compilation where the function body of a function definition consisting of several pattern-matching lines is converted into {\bf match} function which can then be reduced. This section describes the conversion of different types of patterns to their corresponding {\bf match} notation.
+\subsection {Converting Function Body With Constructor or Variable Patterns to match Function}
+Function definitions that have just variable or constructor patterns are easy to translate to {\bf match}. The pattern-matching lines are used directly as the second argument of the match function. Table \ref {Pmatch:VarConsTrans} shows this conversion of variable or constructor patterns 
+to {\bf match} and also outlines the structure of the pattern-matching compiled function. 
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function with pattern-matching} & {\bf Function with pattern-matching compiled} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.2in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad p_{1,1},\ldots, p_{1,n}~~ \to ~~t_1 \\
+&\quad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad p_{m,1},\ldots, p_{m,n}~~ \to ~~t_m \\
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3.6in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad u_1,\ldots,u_n ~~ \to \\
+&\quad \quad \mathbf {normal~~Form~~of} \\
+&\qquad \qquad match~~[u_1,\ldots,u_n] \\
+&\qquad \qquad~~ [\\
+&\qquad \qquad~~~~(~[~p_{1,1},\ldots,p_{1,m}~],~~t_1) \\
+&\qquad \qquad~~~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad \qquad~~~~(~[~p_{m,1},~\ldots~, ~ p_{m,n}~],~t_m) \\
+&\qquad \qquad~~ ]\\
+&\qquad \qquad~~ E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Translation to match: Variable/Constructor Patterns}
+\label{Pmatch:VarConsTrans}
+\end{center}
+\end{table}
+
+
+\subsection {Converting Function Body with Product Patterns to match Function}
+The product patterns in MPL are represented to their corresponding {\bf match} function using the schemes shown in Table \ref {Pmatch:ProdTrans}. The first row of Table \ref {Pmatch:ProdTrans} shows the case where all the patterns in the pattern matching lines have been expressed as product pattern syntax. In this case, the match takes $\mathbf{n}$ fresh variables, which is the same number as the number of elements in the product pattern. The list of pair of patterns inside the product pattern along with the corresponding sequential term forms the second argument of the match.
+~~\\~~\\
+Second row  of Table \ref {Pmatch:ProdTrans} represents a case where the pattern in the last pattern matching line is not a product pattern but a variable pattern. In this case $\mathbf{p}$ is substituted with a product of $\mathbf{n}$ fresh variables (where the product being pattern matched on is a $\mathbf{n}$ tuple) both in the pattern and in the sequential term of the last pattern matching line. The notation $\mathbf{<u_1,\ldots,u_n>/p}$ in the pattern-mathcing compiled column of the second row means that product $\mathbf{<u_1,\ldots,u_n>}$ has been replaced 
+for $\mathbf {p}$ inside the sequential term $\mathbf{t_m}$. 
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function with pattern-matching} & {\bf Function with pattern-matching compiled} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.2in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad <p_{1,1},\ldots, p_{1,n}>~~ \to ~~t_1 \\
+&\quad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad <p_{m,1},\ldots, p_{m,n}>~~ \to ~~t_m \\
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3.6in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad <u_1,\ldots,u_n> ~~ \to \\
+&\quad \quad \mathbf {normal~~Form~~of} \\
+&\qquad \qquad match~~[u_1,\ldots,u_n] \\
+&\qquad \qquad~~ [\\
+&\qquad \qquad~~~~(~[~p_{1,1},\ldots,p_{1,m}~],~~t_1) \\
+&\qquad \qquad~~~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad \qquad~~~~(~[~p_{m,1},~\ldots~, ~ p_{m,n}~],~t_m) \\
+&\qquad \qquad~~ ]\\
+&\qquad \qquad~~ E
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+\begin{minipage}{2.2in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad <p_{1,1},\ldots, p_{1,n}>~~ \to ~~t_1 \\
+&\quad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad \qquad p~~ \qquad\qquad\quad~~\to~~ t_m \\
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3.6in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad <u_1,\ldots,u_n> ~~ \to \\
+&\quad \quad \mathbf {normal~~Form~~of} \\
+&\qquad \qquad match~~[u_1,\ldots,u_n] \\
+&\qquad \qquad~~ [\\
+&\qquad \qquad~~~~(~[~p_{1,1},\ldots,p_{1,m}~],~~t_1) \\
+&\qquad \qquad~~~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad \qquad~~~~(~[~u_{1},~\ldots~, ~u_{n}~],~~t_m~[<u_1,\ldots,u_n>/p]) \\
+&\qquad \qquad~~ ]\\
+&\qquad \qquad~~ E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Translation to match: Product Patterns}
+\label{Pmatch:ProdTrans}
+\end{center}
+\end{table}
+
+\subsection {Converting Function Body with Record Patterns to match Function}
+Table \ref {Pmatch:RecordTrans} shows the representation of record patterns to their corresponding match function. This case is almost identical to that of product patterns. In the table, there
+ are $\mathbf{n}$ destructors $\mathbf{D_1,\ldots,D_n}$ each having a corresponding pattern. $\mathbf{n}$ fresh variables are generated and used as variable patterns corresponding correspnding to the $\mathbf{n}$ destructors. The fresh variables $u_1,\ldots,u_n$ are also used as the first argument to the corresponding {\bf match} function for the record pattern. The patterns assigned to the destructor and the sequential term for the pattern-matching line form the second argument of the {\bf match} function.
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function with pattern-matching} & {\bf Function with pattern-matching compiled} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&\quad (:~ D_1~:=~p_{1,1},~\ldots,~D_n~:=~p_{1,n}~:)~~ \to ~~t_1 \\
+&\quad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad (:~ D_1~:=~p_{m,1},~\ldots,~D_n~:=~p_{m,n}~:)~~ \to ~~t_m \\
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3.2in}
+{
+\begin{align*} 
+&fun~~f1 = \\
+&~~~(:~ D_1~:=~u_{1},~\ldots,~D_n~:=~u_{n}~:) ~~ \to \\
+&\quad \quad \mathbf {normal~~Form~~of} \\
+&\qquad \qquad match~~[u_1,\ldots,u_n] \\
+&\qquad \qquad~~ [\\
+&\qquad \qquad~~~~(~[~p_{1,1},\ldots,p_{1,m}~],~~t_1) \\
+&\qquad \qquad~~~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad \qquad~~~~(~[~p_{m,1},~\ldots~, ~ p_{m,n}~],~t_m) \\
+&\qquad \qquad~~ ]\\
+&\qquad \qquad~~ E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Translation to match: Record Patterns}
+\label{Pmatch:RecordTrans}
+\end{center}
+\end{table}
+
+\section{Configurations of match Function}\label{Pmatch:RedConfigs} 
+There are six reduction rules for {\bf match} corresponding to four different configurations that can occur inside it. These configurations are based on the second argument of {\bf match} which contains the list of patterns for the different pattern-matching lines along with the corresponding sequential term.
+~~\\~~\\
+The first five configurations differentiate the type of patterns in the first column in every pattern-matching line, {\bf variable, product, record, constructor or mixed}. The sixth configuration corresponds to the configuration where the pattern list corresponding to every pattern-matching line is empty or the second argument of {\bf match} function is empty.
+\subsection{Variable First Patterns}
+In this configuration, all the patterns in the first column of pattern-matching lines are {\bf variable patterns}. In Figure \ref {fig:Pmatch_AllVars}, the first patterns $v$ and $w$ are both variable patterns.
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[u_1,u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~\mathbf{v},~Nil~],~~v), \\
+    &\qquad\qquad ~~(~[~\mathbf{w},~Cons~(x,xs)~],~~w*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+    \caption{Example : Variable First Patterns} \label{fig:Pmatch_AllVars}
+    \end{figure}
+
+\subsection {Product First Patterns}
+In this configuration, all the the patterns in the first column of the pattern-matching lines are {\bf product patterns}. In Figure \ref {fig:Pmatch_AllProds}, the first patterns $\mathbf{<Nil,Nil>}$ and $\mathbf{<x,y>}$ are both product patterns.
+
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[u_1,u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~\mathbf{<Nil,Nil>},~v~],~~v), \\
+    &\qquad\qquad ~~(~[~\mathbf{<x,y>},~w~],~~x*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+    \caption{Example : Product First Patterns} \label{fig:Pmatch_AllProds}
+    \end{figure}
+
+\subsection {Record First Patterns}
+In this configuration, all the the patterns in the first column of the pattern-matching lines are {\bf record patterns}. In Figure \ref {fig:Pmatch_RecProds}, the first patterns in the two pattern-matching lines are $~\mathbf{(:~Head~:=~[~],~Tail~:=~t~:)}~$ and $~\mathbf{(:~Head~:=~a:as,~Tail~:=~t~:)}~$. They are both record patterns of the $\mathbf{InfList}$ codata type which has been defined in Figure .
+
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[u_1,u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~\mathbf{(:~Head~:=~[~],~Tail~:=~t~:)},~v~],~~v), \\
+    &\qquad\qquad ~~(~[~\mathbf{(:~Head~:=~a:as,~Tail~:=~t~:)},~w~],~~w*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+    \caption{Example : Record First Patterns} \label{fig:Pmatch_RecProds}
+    \end{figure}
+
+\subsection{Constructor First Patterns}
+  In this configuration, all the patterns in the first column of the pattern-matching lines are {\bf constructor patterns}. In Figure \ref {fig:Pmatch_AllCons}, the first patterns $\mathbf{Nil}$ and $\mathbf{Cons}$ are both constructor patterns.    
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[u_1,u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~\mathbf{Nil},~v~],~~v), \\
+    &\qquad\qquad ~~(~[~\mathbf{Cons~(x,xs)},~w~],~~w*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+    \caption{Example : Constructor First Patterns} \label{fig:Pmatch_AllCons}
+    \end{figure}
+
+\subsection{Mixed First Patterns}
+  In this configuration, the patterns obtained from the first column of the pattern-matching lines are a {\bf mixture of variable, product, record, or constructor patterns}. In Figure \ref {fig:Pmatch_MixedPatt}, the first patterns are $\mathbf{Nil}$, a constructor pattern and $\mathbf{x}$, a variable pattern. 
+
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[u_1,u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~\mathbf{Nil},~v~],~~v) \\
+    &\qquad\qquad ~~(~[~\mathbf{x},~w~],~~w*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+    \caption{Example : Mixed First Patterns} \label{fig:Pmatch_MixedPatt}
+    \end{figure}
+
+\subsection{Empty Configuration}
+Corresponding to this configuration, the normal form of {\bf match} is obtained. This configuration takes two forms:
+\begin{itemize}
+  \item Pattern list in all the elements of the second argument of {\bf match} are empty. This configuration is shown in Figure \ref {fig:Pmatch_EmptyPatt}.
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[~] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~],~~v) \\
+    &\qquad\qquad ~~(~[~],~~w*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+    \caption{Example : Empty Configuration (Pattern Lists are Empty)} \label{fig:Pmatch_EmptyPatt}
+    \end{figure}
+  \item The second argument of {\bf match} is an empty list. This configuration is show in Figure \ref {fig:Pmatch_EmptySArgs}.
+    \begin{figure}[!h]
+    \begin{align*} 
+    &match~~[~]~~[~]~~E 
+    \end{align*} 
+    \caption{Empty Configuration : Second Argument is Empty} \label{fig:Pmatch_EmptySArgs}
+    \end{figure}
+\end{itemize}
+
+
+\section{Reduction Rules for match}\label{Pmatch:redRule}
+Reduction rules corresponding to the six {\bf match} configurations desacribed in Section \ref {Pmatch:RedConfigs}  are listed below:
+\subsection {Variable Rule} 
+This is the reduction rule corresponding to the {\bf Variable First Patterns} configuration. The reduction rule for this case is provided in Table \ref {Pmatch:VarRedRule}. In this after column of the reduction rule, $t_i[~u/p_i~]$ signifies that all the instances of variable $p_i$ inside term $t_i$ have been replaced by $u$.
+~~\\
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&match~~[u_1,\ldots,u_n] \\
+&\qquad\qquad [\\
+&\qquad\qquad ~~(~[~p_{1,1},~\ldots~, ~ p_{1,n}~],~~t_1) \\
+&\qquad\qquad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad\qquad ~~(~[~p_{m,1},~\ldots~, ~ p_{m,n}~],~t_m) \\
+&\qquad\qquad ]\\
+&\qquad\qquad E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~[u_2,\ldots,u_n] \\
+&\qquad\qquad [\\
+&\qquad\qquad ~~(~[~p_{1,2},~\ldots~, ~ p_{1,n}~],~t_1[~u/p_1~]~) \\
+&\qquad\qquad ~~\qquad \qquad \vdots\qquad\qquad  \\ 
+&\qquad\qquad ~~(~[~p_{m,2},~\ldots~, ~ p_{m,n}~],~t_m[~u/p_m~]~)\\
+&\qquad\qquad ]\\
+&\qquad\qquad E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Variable Rule}
+\label{Pmatch:VarRedRule}
+\end{center}
+\end{table}
+~~\\
+Applying this reduction rule to the {\bf Variable First Pattern} example from Figure \ref{fig:Pmatch_AllVars} results in the transformation as shown in Table \ref {Pmatch:VarRedRuleExample}.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+    \begin{align*} 
+    &match~~[u_1,u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~\mathbf{v},~Nil~],~~v), \\
+    &\qquad\qquad ~~(~[~\mathbf{w},~Cons~(x,xs)~],~~w*w) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+    \begin{align*} 
+    &match~~[u_2] \\
+    &\qquad\qquad [\\
+    &\qquad\qquad ~~(~[~Nil~],~~u_1), \\
+    &\qquad\qquad ~~(~[~Cons~(x,xs)~],~~u_1*u_1) \\
+    &\qquad\qquad ]\\
+    &\qquad\qquad E
+    \end{align*} 
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Variable Reduction Rule Example}
+\label{Pmatch:VarRedRuleExample}
+\end{center}
+\end{table}
+
+\subsection {Product Rule}
+This is the reduction rule corresponding to the {\bf Product First Patterns} configuration. This rule has been shown in Table \ref {Pmatch:ProdRedRule}. In the table, the first product pattern in each pattern-matching line contains $\mathbf{a}$ patterns. The reduction rules takes the $\mathbf{a}$ patterns from the product in each pattern-matching line and appends it with the tail of the original pattern list on that pattern-matching line. $\mathbf{a}$ fresh variables,$\mathbf{u_{n+1},\ldots,u_{n+a+1}}$ are also generated and appended to the tail of the original fresh variable list.
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~[u_1,\ldots,u_n] \\
+&\quad [\\
+&\quad ~~(~[<p_{1,1,1},\ldots,p_{1,1,a}>,p_{1,2},\ldots,p_{1,n}~],~t_1) \\
+&\quad ~~ \qquad\qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad ~~(~[<p_{m,1,1},\ldots,p_{m,1,a}>,p_{m,2},\ldots,p_{m,n}~],~t_m) \\
+&\quad ]\\
+&\quad E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~([u_{n+1},\ldots,u_{n+a+1}]~\texttt{++}~[u_2,\ldots,u_n]) \\
+&\quad [\\
+&\quad ~~(~[p_{1,1,1},\ldots,p_{1,1,a},p_{1,2},\ldots,p_{1,n}~],~t_1) \\
+&\quad ~~ \qquad\qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad ~~(~[p_{m,1,1},\ldots,p_{m,1,a},p_{m,2},\ldots,p_{m,n}~],~t_m) \\
+&\quad ]\\
+&\quad E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Product Rule}
+\label{Pmatch:ProdRedRule}
+\end{center}
+\end{table}
+
+\subsection {Record Rule}
+This is the reduction rule corresponding to the {\bf Record First Patterns} configuration. This rule has been shown in Table \ref {Pmatch:RecordRedRule}. This rule is similar to the product rule which is not surprising because the products are stored in records internally.
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~[u_1,\ldots,u_n] \\
+&\quad [\\
+&\quad ~~(~[<D_1~:=~p_{1,1,1},\ldots,D_a~:=~p_{1,1,a}>,p_{1,2},\ldots,p_{1,n}~],~t_1) \\
+&\quad ~~ \qquad\qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad ~~(~[<D_1~:=~p_{m,1,1},\ldots,D_a~:=~p_{m,1,a}>,p_{m,2},\ldots,p_{m,n}~],~t_m) \\
+&\quad ]\\
+&\quad E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~([u_{n+1},\ldots,u_{n+a+1}]~\texttt{++}~[u_2,\ldots,u_n]) \\
+&\quad [\\
+&\quad ~~(~[p_{1,1,1},\ldots,p_{1,1,a},p_{1,2},\ldots,p_{1,n}~],~t_1) \\
+&\quad ~~ \qquad\qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad ~~(~[p_{m,1,1},\ldots,p_{m,1,a},p_{m,2},\ldots,p_{m,n}~],~t_m) \\
+&\quad ]\\
+&\quad E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Product Rule}
+\label{Pmatch:RecordRedRule}
+\end{center}
+\end{table}
+
+
+\subsection {Constructor Rule}
+This is the reduction rule corresponding to the {\bf Constructor First Patterns} configuration. This rule is more complicated than the {\bf Variable rule} and requires that the second argument of {\bf match}, which is a list of pair of patterns and their corresponding sequential term, be represented in a particular format before the {\bf Constructor Rule} can be applied. Section \ref {pmatch:reformatConsRule} deals with the reformatting of the {\bf match}.
+
+\subsubsection {Reformatting match for Constructor Rule}\label{pmatch:reformatConsRule}
+Suppose the constructor patterns in the first column of the different pattern-lines are constructors of a data type $d$. Suppose $d$ has $m$ constructors, say $C_1,\ldots,C_m$. The list of pairs of patterns and term can then be partitioned into $m$ parts such that every part consist of the pairs whose first pattern start with the same constructor. Let these partitions be $qs_1,qs_2,\ldots,qs_m$. The {\bf match} can be represented in a format as shown in Figure \ref {fig:Pmatch_PartCons}.
+\begin{figure}
+\begin{align*}
+  match~~(u:us)~~(qs_1 ~ \texttt{++} \ldots \texttt{++}~qs_m)~~ E
+\end{align*}
+\caption{match Representation : Partitioning Constructors} \label{fig:Pmatch_PartCons}
+\end{figure}
+~~\\~~\\
+Here, \texttt{++} is the list $append$ function. $qs_i$ consists of all the pairs correponding to a pattern-matching line which have constructor $C_i$ as the first pattern. Every $qs_i$ is of the form shown in Figure \ref {fig:PMatch_QsForm}.
+\begin{figure}
+\begin{align*}
+&\bigg[\\
+&\qquad \bigg(\Big((C_i~~ps_{i,1}^{\prime}):ps_{i,1}\Big),t_{i,1}\bigg), \\ 
+&\qquad \qquad \vdots \\
+&\qquad \bigg(\Big((C_i~~ps_{i,j}^{\prime}):ps_{i,j}\Big),t_{i,j}\bigg) \\ 
+&\bigg]
+\end{align*}
+\caption{Internal Representation of $qs_i$} \label{fig:PMatch_QsForm}
+\end{figure}
+~~\\~~\\
+The internal representation of $qs_i$ in Figure \ref {fig:PMatch_QsForm} conveys the following:
+\begin{itemize}
+  \item There are $j$ pattern-matching lines starting with $C_i$.
+  \item $ps^\prime$ in the representation $C~ps^\prime$ stands for the list of the arguments that the constructor $C_i$ takes.
+  \item $ps$ in the representation $((C~ps^\prime):ps)$ represents the remaining pattern list of a pattern-matching line except the last one.
+\end{itemize}
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function Definition} & {\bf match Representation for \textit{someFun} function body} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.1in}
+\begin{verbatim}
+ fun someFun =
+    []   ,[]   -> []
+    []   ,ys   -> ys
+    x:xs ,[]   -> xs
+    x:xs ,y:ys -> ys
+
+\end{verbatim} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~[u_1,u_2] \\
+&\qquad\qquad [\\
+&\qquad\qquad ~~(~[~Nil,~Nil~],~Nil), \\
+&\qquad\qquad ~~(~[~Nil,~ys~],~ys), \\
+&\qquad\qquad ~~(~[~Cons~(x,xs),~Nil~],~ys), \\
+&\qquad\qquad ~~(~[~Cons~(x,xs),~Cons~(y,ys)~],~ys) \\
+&\qquad\qquad ]\\
+&\qquad\qquad E
+\end{align*}
+}
+\end {minipage}\\
+\hline 
+\multicolumn{2}{|c|}{\bf Reformatted match for \textit{someFun}}\\ 
+\hline
+\multicolumn{2}{|c|}{
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&match~~[u_1,u_2] \\
+&\qquad\qquad \bigg ( \\ 
+&\qquad\qquad\quad \bigg[~(~[Nil,~Nil],~Nil),~(~[Nil,~ys~],~ys)~\bigg]~\texttt{++}\\
+&\qquad\qquad\quad \bigg[~(~[Cons~(x,xs),~Nil],~Nil),~(~[Cons~(x,xs),Cons~(y,xs)],~ys~)\bigg]~\\
+&\qquad\qquad \bigg )\\
+&\qquad\qquad E
+\end{align*}
+}
+\end {minipage} 
+}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : Reformatting match for \textit{someFun}}
+\label{Pmatch:ExamConsPoint}
+\end{center}
+\end{table}
+For example - In Table \ref{Pmatch:ExamConsPoint}, the {\bf match} representation for function $someFun$ has been reformatted based on the format described in Figure \ref {fig:Pmatch_PartCons}.
+~~\\~~\\
+$Nil$ and $Cons$ are two constructors corresponding to the $List$ data type. There are two pattern-matching lines with $Nil$ as the first constructor and two with $Cons$ as the first constructor.
+~~\\~~\\
+If the reformatted {\bf match} representation of $somefun$ is now compared to the {\bf match} format described in Figure \ref {fig:Pmatch_PartCons}, then :
+\begin {align*}
+&[~(~[Nil,~Nil],~Nil),~(~[Nil,~ys~],~ys)~]~~is~~\mathbf{qs_1} \\
+&[~(~[Cons~(x,xs),~Nil],~Nil),~(~[Cons~(x,xs),Cons~(y,xs)],~ys~)]~~is~~\mathbf{qs_2}
+\end{align*}
+\subsubsection{Applying Constructor Rule to the Reformatted match}
+Once the match has been reformatted, the {\bf Constructor Rule} can now be described as shown in Table \ref {Pmatch:ConsRedRule}. Here, each $qs_i$ is of the form described in Figure \ref {fig:PMatch_QsForm}, $qs_i^{\prime}$ is of the form described in Figure \ref {fig:PMatch_QsPrimeForm} and $us_i{\prime}$ is a list of fresh variables. The number of fresh variables in the list $us_i{\prime}$ is the same as the number of arguments that the constructor $C_i$ takes as input.
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*}
+  match~~(u:us)~~(qs_1 ~ \texttt{++} \ldots \texttt{++}~qs_m)~~ E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&case~~u~~of\\
+&\qquad C_1~~us^\prime_{1} ~~ \to~~ match~~(us^\prime_{1}~\texttt{++}~~us)~~qs^\prime_{1}~~E \\
+&\qquad \qquad \vdots\\
+&\qquad C_1~~us^\prime_{m} ~~ \to~~ match~~(us^\prime_{m}~\texttt{++}~~us)~~qs^\prime_{m}~~E 
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Constructor Rule}
+\label{Pmatch:ConsRedRule}
+\end{center}
+\end{table}
+
+\begin{figure}
+\begin{align*}
+&\bigg[\\
+&\qquad \big((ps_{i,1}^{\prime}~~\texttt{++}~~ps_{i,1}),t_{i,1}\big) \\ 
+&\qquad \qquad \qquad \vdots \\
+&\qquad \big((ps_{i,1}^{\prime}~~\texttt{++}~~ps_{i,1}),t_{i,1}\big) \\ 
+&\bigg]
+\end{align*}
+\caption{Internal Representation of $qs_i^{\prime} $} \label{fig:PMatch_QsPrimeForm}
+\end{figure}
+~~\\
+Table \ref {Pmatch:ExamConsRule} demonstrates an example of reduction using the {\bf Constructor Rule}. The {\bf match} representation in the before column of the table is the reformatted {\bf match} notation of the function $someFun$ taken from Table \ref {Pmatch:ExamConsPoint}.
+~~\\
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function Definition} & {\bf match representation of the function body} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&match~~[u_1,u_2] \\
+&\qquad\qquad \bigg ( \\ 
+&\qquad\qquad\quad \bigg[~(~[Nil,~Nil~],~Nil),~(~[Nil,~ys~],~ys)~\bigg]~\texttt{++}\\
+&\qquad\qquad\quad \bigg[~(~[Cons~(x,xs),~Nil],~Nil),\\ 
+&\qquad\qquad\quad ~~~(~[Cons~(x,xs),Cons~(y,xs)],~ys~)\bigg]~\\
+&\qquad\qquad \bigg )\\
+&\qquad\qquad E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+& \mathbf{case} ~~u_1~~of\\
+&\qquad \mathbf{Nil}~~\to\\
+&\qquad~~match~~[u_2]~~\Big[~(~[~Nil~],~Nil),~(~[~ys~],~ys)~\Big]~~ E\\
+&\qquad \mathbf{Cons~(u_3,u_4)}~~\to\\
+&\qquad~~ match~~[u_3,u_4,u_1]\\
+&\qquad\qquad\quad \bigg[ \\
+&\qquad\qquad\quad~~~(~[x,xs,~Nil],~Nil),\\ 
+&\qquad\qquad\quad ~~~(~[x,xs,Cons~(y,xs)],~ys)\\
+&\qquad\qquad\quad \bigg]~\\
+&\qquad\qquad\quad E
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : Constructor Rule}
+\label{Pmatch:ExamConsRule}
+\end{center}
+\end{table}
+
+\subsection {Mixture Rule}
+This is the reduction rule is corresponding to the {\bf Mixed First Patterns} configuration.
+\subsubsection{Reformatting match for Mixture rule} \label{sect:PMatch_ReFormatMixed}
+Suppose the {\bf match} representation to be reduced is of the form
+\begin{align*} 
+& match~~us~~qs~~E
+\end{align*}
+The pair list $qs$ can be partitioned into $m$ lists such that it is of the form show in Figure \ref {fig:PMatch_ReFormatMixed}. Each $qs_i$ should start either with a {\bf Variable Pattern} or a {\bf Constructor Pattern}.
+\begin{figure}
+\begin{align*} 
+ qs~~=~~qs_1~~\texttt{++}~~qs_2~~\texttt{++}~~\ldots~~\texttt{++}~~qs_m
+\end{align*}
+\caption{Mixture Rule : Reformatting Scheme for match in Mixture Rule} \label{fig:PMatch_ReFormatMixed}
+\end{figure}
+~~\\~~\\ 
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.3in}
+{
+\begin{align*}
+  match~~us~~(qs_1 ~ \texttt{++} \ldots \texttt{++}~qs_m)~~ E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+match~~us~~qs_1~~(match~~us~~qs_2~~(~\ldots~~(match~~us~~qs_m)~\ldots~))
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Mixture Rule}
+\label{Pmatch:MixRedRule}
+\end{center}
+\end{table}
+\subsubsection{Applying Mixture Rule to the Reformatted match}
+Once the {\bf match} has been reformatted based on the scheme for {\bf Mixture Rule} described in Section \ref {sect:PMatch_ReFormatMixed}, the reduction rule corresponding to {\bf Mixed First Patterns} can now be described. This has been done in Table \ref {Pmatch:MixRedRule}.
+~~\\~~\\
+Applying the {\bf Mixture Rule} to the example in Figure \ref {fig:Pmatch_MixedPatt}, one starts with reformatting the {\bf match} to the scheme suggested in Figure \ref {fig:PMatch_ReFormatMixed}. As a result of the reformatting, the {\bf match} representation shown in Figure \ref {fig:PMatch_ReFormatExamMixed} is obtained. Now the {\bf Mixture Rule} can be applied to this reformatted match as shown in Table \ref {Pmatch:ExamMixRule}.  
+
+\begin{figure}
+\begin{align*}
+&match~~[u_1,u_2] \\
+&\qquad\qquad \bigg ( \\ 
+&\qquad\qquad\quad \bigg[~(~[Nil,~v],~v)~\bigg]~\texttt{++}\\
+&\qquad\qquad\quad \bigg[~(~[x,~w],~w*w)~\bigg]~\\
+&\qquad\qquad \bigg )\\
+&\qquad\qquad E
+\end{align*}
+\caption{Mixture Rule : Reformatted match}  \label{fig:PMatch_ReFormatExamMixed}
+\end{figure}
+
+
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function Definition} & {\bf match representation of the function body} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*}
+&match~~[u_1,u_2] \\
+&\qquad\qquad \bigg ( \\ 
+&\qquad\qquad\quad \bigg[~(~[Nil,~v],~v)~\bigg]~\texttt{++}\\
+&\qquad\qquad\quad \bigg[~(~[x,~w],~w*w)~\bigg]~\\
+&\qquad\qquad \bigg )\\
+&\qquad\qquad E
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~[u_1,u_2]~~\Big[~(~[Nil,~v],~v)~\Big]~ \\ 
+&\qquad\Big ( \\ 
+&\qquad ~~match~~[u_1,u_2]~~\Big[~(~[x,~w],~w*w)~\Big]~~E \\
+&\qquad \Big )\\
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : Constructor Rule}
+\label{Pmatch:ExamMixRule}
+\end{center}
+\end{table}
+
+\subsection {Empty Rules and Normal Form of match}
+{\bf Empty Rules} are applied when an {\bf Empty configuration} is obtained. {\bf Empty Configuration} signals that there are there are no more patterns to be compiled and thus marks the end of reduction process with the generation of the normal form for the {\bf match} function. The {\bf Empty Rules} have been described in Table \ref {Pmatch:Normalform}.
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2in}
+{
+\begin{align*}
+&match~~[~] \\
+&\qquad\qquad \Big [ \\ 
+&\qquad\qquad\quad ([~],~~E_1),\\ 
+&\qquad\qquad\quad \quad \vdots \\ 
+&\qquad\qquad\quad ([~],~~E_n) \\
+&\qquad\qquad \Big ]\\
+&\qquad\qquad E
+\end{align*} 
+} 
+\end {minipage} &
+\begin{minipage}{1.5in}
+{
+\begin{align*} 
+& E_1
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+
+\begin{minipage}{2in}
+{
+\begin{align*}
+&match~~[~]~~[~]~~E
+\end{align*} 
+} 
+\end {minipage} &
+\begin{minipage}{1.5in}
+{
+\begin{align*} 
+& E
+\end{align*}
+}
+\end {minipage}
+
+
+\tabularnewline
+\hline
+
+\end{tabular}
+\caption{Empty Rules}
+\label{Pmatch:Normalform}
+\end{center}
+\end{table}
+
+\section {Example}
+ \textit{append} function was defined at the beginning of this chapter with pattern-matching and with {\sf case} construct (Table \ref {Pmatch:Ex1}) as the motivating example for {\em pattern-matching compilation}. In this section, the tools described in the previous sections of the chapter, i.e {\bf match} function, its reduction rules and normal form, are used to show the step by step translation of \textit{append} function body with pattern-matching to the one with {\sf case} construct. 
+~~\\~~\\
+Table \ref{Pmatch:Ex1StepbyStepTopLevel} describes the overview of the strategy used in the compilation of pattern-matching of \textit{append}. The function body of \textit{append} is converted to its {\bf match} representation. The normal form of the {\bf match} representaion is then found and plugged in the skeleton provided in step 2  of Table \ref{Pmatch:Ex1StepbyStepTopLevel}.
+~~\\~~\\
+The calculation of the normal form for the  {\bf match} representation of the body of \textit{append} has been described step wise in Table \ref {Pmatch:Ex1StepWise}. To keep the table readable, two {\bf match} functions generated in step 3 of Table \ref {Pmatch:Ex1StepWise} have been normalised in their own tables. {\bf match} corresponding to the {\bf Nil} constructor has been normalised in Table \ref {Pmatch:Ex1StepWiseNil} and the {\bf match} corresponding to the  {\bf Cons} constructor has been normalised in Table \ref {Pmatch:Ex1StepWiseCons}. These normal forms are substituted directly in step 4 and step 5 respectively of the Table \ref {Pmatch:Ex1StepWise} for their corresponding {\bf match} functions.
+~~\\~~\\
+Once the normal form of the {\bf match} function corresponding to the \textit{append} function body is found, the function definition with {\sf case} is be easily obtained as can be seen in Figure \ref {fig:Pmatch:Final}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{|c|} \hline
+{\bf \textit{append} definition with pattern-matching} \\ 
+\hline
+\begin{minipage}{2.2in}
+\begin{alltt}
+
+
+fun append = 
+  [],   ys   -> ys 
+  x:xs, ys   -> x:append (xs,ys) 
+
+
+\end{alltt}
+\end {minipage} \\ 
+\hline
+{\bf Step 1 : match Representation of the body of \textit{append}} \\ 
+\hline
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&match~~[u_1,u_2] \\
+&~~\bigg[\\ 
+&~~~ \Big([Nil,~ys~],~ys\Big),\\
+&~~~ \Big([Cons(x,xs),ys],~Cons\big(x,append~(xs,ys)\big)\Big)~\\ 
+&~~ \bigg ]\\ 
+&~~E
+\end{align*}
+}
+\end {minipage}\\
+
+\hline 
+{\bf Step 2 : \textit{append} definition with case}\\ 
+\hline
+\begin{minipage}{3in}
+\begin{alltt}
+
+
+fun append = 
+  u1,u2 -> normal form (match Rep. of body)
+
+
+\end{alltt}
+\end {minipage}\\
+
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Overview of Pattern-Matching Compilation of \textit{append}}
+\label{Pmatch:Ex1StepbyStepTopLevel}
+\end{center}
+\end{table}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{table}[h!]
+{\small
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf 1 : Reformatting match for Constr. Rule} & {\bf 2 : Applying Constr. Reduction Rule} \\ 
+\hline
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&match~~[u_1,u_2] \\
+&~~\bigg[\\ 
+&~~~ \Big([Nil,~ys~],~ys\Big),\\
+&~~~ \Big([Cons(x,xs),ys],~Cons\big(x,append~(xs,ys)\big)\Big)~\\ 
+&~~ \bigg ]\\ 
+&~~E
+\end{align*}
+}\end {minipage} &
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&match~~[u_1,u_2] \\
+&~~\bigg ( \\ 
+&~~~ \bigg[\Big(~[Nil,~ys~],~ys\Big)~\bigg]~\texttt{++}\\
+&~~~ \bigg[\Big(~[Cons(x,xs),ys],~Cons(x,append(xs,ys)\Big)\bigg]~\\ 
+&~~\bigg )\\
+&~~E
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+{\bf 2 : Reducing \textit{Nil} match (see Table \ref {Pmatch:Ex1StepWiseNil})} & {\bf 5 : Reducing \textit{Cons} match (see Table \ref {Pmatch:Ex1StepWiseCons})} \\ 
+\hline
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&case~~u_1~~of\\
+&~~Nil~~\to~~ \\ 
+&\qquad match~~[u_2]~~\Big[~\big([~ys~],ys\big)~\Big]~~E \\
+&~~Cons~(u_3,u_4)~~\to\\
+&\qquad match~~[u_3,u_4,u_2]\\ 
+&\qquad~~\bigg[\\ 
+&\qquad~~~\Big([~x,xs,ys~],~Cons~\big(x,~append~(xs,ys)~\big)\Big)\\ 
+&\qquad~~\bigg]~~E \\
+\end{align*}
+
+}
+\end {minipage} &
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&case~~u_1~~of\\
+&~~Nil~~\to~~u_2\\
+&~~Cons~(u_3,u_4)~~\to\\
+&\qquad match~~[u_3,u_4,u_2]\\ 
+&\qquad\quad~~\bigg[\\ 
+&\qquad\quad~~~\Big([~x,xs,ys~],~Cons~\big(x,~append~(xs,ys)~\big)\Big)\\ 
+&\qquad\quad~~\bigg]~~E \\
+\end{align*}
+}
+\end {minipage}\\ 
+
+\hline 
+\multicolumn{2}{|c|}{}\\ 
+\hline
+\multicolumn{2}{|c|}{
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&case~~u_1~~of\\
+&~~Nil~~\to~~u_2\\
+&~~Cons~(u_3,u_4)~~\to~~Cons~\big(u_3,~append~(u_4,u_2)~\big)\\
+\end{align*}
+}
+\end {minipage} 
+}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{5 : \textit{append} body with {\sf case}}
+\label{Pmatch:Ex1StepWise}
+\end{center}
+}
+\end{table}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{table}[h!]
+{\small
+\begin{center}
+\begin{tabular}{|c|c|c|} \hline
+{\bf 1 : Variable Rule} & {\bf 2 : Empty Rule} & {\bf 3 : Normal Form} \\ 
+\hline
+\begin{minipage}{1.5in}
+{
+\begin{align*} 
+&match~~[u_2]~~\Big[~\big([~ys~],ys\big)~\Big]~~E\\ 
+\end{align*}
+}\end {minipage} &
+\begin{minipage}{1.5in}
+{
+\begin{align*} 
+&match~~[~]~~\Big[~\big([~],u_2\big)~\Big]~~E 
+\end{align*}
+}
+\end {minipage} & 
+
+\begin{minipage}{1.5in}
+{
+\begin{align*} 
+u_2
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline 
+\end{tabular}
+\caption{Reduction of {\bf match} (corresponding to Nil, step 3, Table \ref {Pmatch:Ex1StepWise})}
+\label{Pmatch:Ex1StepWiseNil}
+\end{center}
+}
+\end{table} 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{table}[h!]
+{\small
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{\bf 1 : Variable Rule} & {\bf 2 : Variable Rule} \\ 
+\hline
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&\qquad match~~[u_3,u_4,u_2]\\ 
+&\qquad~~\bigg[\\ 
+&\qquad~~~\Big([~x,xs,ys~],~Cons~\big(x,~append~(xs,ys)~\big)\Big)\\ 
+&\qquad~~\bigg]~~E \\ 
+\end{align*}
+}\end {minipage} &
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&\qquad match~~[u_4,u_2]\\ 
+&\qquad~~\bigg[\\ 
+&\qquad~~~\Big([~xs,ys~],~Cons~\big(u_3,~append~(xs,ys)~\big)\Big)\\ 
+&\qquad~~\bigg]~~E 
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+{\bf Variable Rule} & {\bf Empty Rule} \\ 
+\hline
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&\qquad match~~[u_2]\\ 
+&\qquad~~\bigg[\\ 
+&\qquad~~~\Big([~ys~],~Cons~\big(u_3,~append~(u_4,ys)~\big)\Big)\\ 
+&\qquad~~\bigg]~~E \\ 
+\end{align*}
+}\end {minipage} &
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+&\qquad match~~[~]\\ 
+&\qquad~~\bigg[\\ 
+&\qquad~~~\Big([~],~Cons~\big(u_3,~append~(u_4,u_2)~\big)\Big)\\ 
+&\qquad~~\bigg]~~E \\ 
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+\multicolumn{2}{|c|}{\bf 5 : Normal Form} \\ 
+\hline 
+\multicolumn{2}{|c|}{
+\begin{minipage}{3in}
+ {
+\begin{align*} 
+~Cons~\big(u_3,~append~(u_4,u_2)~\big)
+\end{align*}
+}
+\end {minipage} 
+}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Reduction of {\bf match} (corresponding to Cons, step 3, Table \ref {Pmatch:Ex1StepWise})}
+\label{Pmatch:Ex1StepWiseCons}
+\end{center}
+}
+\end{table}
+
+\begin{figure}[!h]
+\begin{alltt}
+
+
+        fun append = 
+          u1,u2 -> case u1 of 
+                      Nil -> u3
+                      Cons (u3,u4) -> Cons (u3,append(u4,u2))
+
+
+\end{alltt}
+\caption{\textit{append} definition with case} \label{fig:Pmatch:Final}
+\end{figure}
+
+\end {document}

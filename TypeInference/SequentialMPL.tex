@@ -8,6 +8,7 @@
 \usepackage{xcolor}
 \usepackage{proof}
 \usepackage {alltt}
+\usepackage{gensymb}
 
 \usepackage{graphicx} % Allows including images
 \usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
@@ -44,31 +45,440 @@
 \begin{document}
 
 \maketitle
-\section {Sequential MPL Constructs} 
-Sequential MPL constructs can be divided into three categories:
+\section {Sequential MPL} 
+Sequential MPL consists of data type/codata type definitions and function definitions. Function definitions use pattern matching syntactic and use various sequential constructs in their body. Sequential MPL constructs can be divided into three parts: constructs that deal with data types , constructs that deal with codata types and constructs that deal with neither. 
+~~\\~~\\ 
+Data types and their constructs are described in Section \ref {SeqMPL:dataandDCons}. Codata types and their constructs are described in Section \ref {SeqMPL:codataandCDCons}. Section \ref {SeqMPL:IndCons} describes non data type/codata type constructs. Section \ref {SeqMPL:IntPmatch} introduces pattern matching syntactic sugar in MPL and Section \ref {SeqMPL:HigherOrder} describes how higher order functions can be obtained in MPL.
+
+\section {Data Type and Constructs for Data Type}\label{SeqMPL:dataandDCons}
+MPL allows the programmers to define data types. The syntax of a data definition is:
+\begin{align*} 
+\mathbf{data~~D(A_1,\ldots,A_n)~\to Z~~=~~}&\mathbf{C_1: F_1~\tilde{P_1}~Z~ \to Z}\\
+                                  &\mathbf{\qquad\qquad \vdots }\\    
+                                  &\mathbf{C_n: F_n~\tilde{P_n}~Z ~ \to Z}
+\end{align*}
+Noticeable things about the data defintion are below:
 \begin{itemize}
-  \item {\bf Data Type Constructs:} These constructs are used with data types. They are {\sf case}, {\sf constructor} and {\sf fold} constructs.
-  \item {\bf Codata Type Constructs:}
-  \item {\bf Non Data/Codata Constructs:} These are general MPL constructs that are not used with either data or codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant} and {\sf if} constructs.
+  \item The name of the data type defined is $\mathbf{D}$
+  \item The syntax $\mathbf{D(A_1,\ldots,A_n)~\to Z}$ conveys that a data type is an intial algebra.
+  \item $\mathbf{\{A_1,\ldots,A_n\}}$ is the set of type parameters/type variables of the data type $\mathbf{D}$.
+  \item $\mathbf{C_1,\ldots,C_n}$ are the constructors of the data type $\mathbf{D}$.  
+  \item $\mathbf{\tilde{P_i}}$ is the set of type parameters used in constructor $\mathbf{C_i}$ such that $\mathbf{\tilde{P_i}}$ is a subset of $\mathbf{\{A_1,\ldots,A_n\}}$.
+  \begin{align*}
+    \tilde{P_i}~\subseteq~(A_1,\ldots,A_n)
+  \end{align*}
+  \item The union of all the $\mathbf{{P_i}}$ for $\leq i \leq n$ should result in set $\mathbf{\{A_1,\ldots,A_n\}}$.   
+  \begin{align*}
+    \bigcup\limits_{i=1}^{n}~\tilde{P_i}~=~\{A_1,\ldots,A_n\}
+  \end{align*}
+  \item $\mathbf{F_i~\tilde{P_i}~Z}$ is a type using the type variables $\mathbf{P_i}$ and $\mathbf{Z}$. $\mathbf{F_i~\tilde{P_i}~Z}$ is the input type of constructor $\mathbf{C_i}$.
 \end{itemize}
-In this following sections non data/codata constructs are discussed first, followed by data type constructs and codata type constructs.
-\section {Non Data/Codata Constructs}
-These are general MPL constructs that are not used with either data or codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant} and {\sf if} constructs.
+Section \ref {SeqMPL:dataExample} shows a few examples of data type definitions in MPL. The sequential MPL constructs that work on data types are described in Section \ref {SeqMPL:dataConstruct}.
+\subsection {Examples of Data Type}\label{SeqMPL:dataExample}
+\subsubsection {Boolean Data Type}
+The boolean data type can be defined in MPL as:
+\begin{alltt}
+          data Bool -> C = True  :: -> C 
+                           False :: -> C
+\end{alltt}
+The name of the data type is $\mathbf{Bool}$ and it has two constructors, $\mathbf{True}$ and $\mathbf{False}$. $\mathbf{Bool}$ doesn't have any type variables. Both the constructors don't take any input and their output type is $\mathbf{Bool}$. 
+\subsubsection {Natural Number Data Type} 
+The inductive defintion of natural numbers can be used to define the MPL data type for natural numbers called $\mathbf{Nat}$ as shown below:
+\begin{alltt}
+          data Nat -> C = Zero  ::   -> C 
+                          Succ  :: C -> C
+\end{alltt}
+$\mathbf{Nat}$ data type is made up of two constructors, $\mathbf{Zero}$ and $\mathbf{Succ}$ meaning that all natural numbers can be expressed in terms of these data types. Constructor $\mathbf{Zero}$ doesn't take any input and its output type is $\mathbf{Nat}$. Constructor $\mathbf{Succ}$ takes a natural number of type $\mathbf{Nat}$ as input and returns the next natural number of type $\mathbf{Nat}$ as the output. The $\mathbf{Succ}$ constructor is recursive.
+\subsubsection {List Data Type}
+The $\mathbf{List}$ data type can be defined as below:
+\begin{alltt}
+          data List(A) -> C = Nil   ::     -> C 
+                              Cons  :: A,C -> C
+\end{alltt}
+$\mathbf{List}$ data type is polymorphic in type variable $\mathbf{A}$ meaning that this data type can be used to store elements of any type $\mathbf{A}$ in a list. List is made up of two constructors, $\mathbf{Nil}$ and $\mathbf{Cons}$. $\mathbf{Nil}$ constructor represents an empty list. $\mathbf{Nil}$ doesn't take any input and its output type is $\mathbf{List(A)}$. $\mathbf{Cons}$ constructor takes two inputs, an element of type $\mathbf{A}$ and a list of type $\mathbf{List(A)}$ and puts the element at the front of the list. The output of the $\mathbf{Cons}$ constructor is $\mathbf{List(A)}$. $\mathbf{Cons}$ constructor is recursive.
+\subsubsection {Either Data Type}
+$\mathbf{Either}$ data type is defined as below:
+\begin{alltt}
+          data Either(A,B) -> C = Left   :: A -> C 
+                                  Right  :: B -> C
+\end{alltt}
+$\mathbf{Either}$ data type has two constructors $\mathbf{Left}$ and $\mathbf{Right}$. This data type can be used as the output type of a function that returns two different types as output, say $\mathbf{A}$ and $\mathbf{B}$. When the function returns the value of type $\mathbf{A}$, $\mathbf{Left}$ constructor is used and when the function returns the value of type $\mathbf{B}$, $\mathbf{Right}$ constructor is used. This data type is usually used to handle the output of a function that can fail for some inputs. Function returns an error message with the $\mathbf{Left}$ constructor and the normal output with the $\mathbf{Right}$ constructor.
+
+\subsection {Constructs for Data Types}\label{SeqMPL:dataConstruct}
+There are some sequential MPL constructs that work with data types. They are {\sf case}, {\sf constructor} and {\sf fold} constructs. They are described in this section.
+
+\subsubsection {constructor}\label{SeqMPL:consConstruct}
+A data type has a set of {\sf constructors}. As the name suggests, the {\sf constructors} of a data type are used to generate terms/instances of that data type.
+~~\\~~\\
+For example, the constructor $\mathbf{Zero}$ and $\mathbf{Nat}$ can be used to generate any natural number:
+\begin{align*}
+  Zero,~Succ(Zero),~Succ(Succ(Zero)),~Succ(Succ(Zero))\ldots
+\end{align*}
+$\mathbf{Zero}$ represents 0, $\mathbf{Succ(Zero)}$ represents 1, $\mathbf{Succ(Succ(Zero))}$ represents 2 etc. 
+~~\\~~\\
+The two constructors of $\mathbf{List}$, $\mathbf{Nil}$ and $\mathbf{Cons}$ can be used to represent a polymorphic list. Consider a list of integers, then some examples of a list of integers created using the constructors of $\mathbf{List}$ data type are:
+\begin{align*}
+  Nil,~Cons(1,Nil),~Cons(1,Cons(2,Nil)),~Cons(1,Cons(2,Cons(3,Nil)))\ldots
+\end{align*}
+The can be equivalently written as below in the convenient syntax for lists:
+\begin{align*}
+  [~],~[1],~[1,2],~[1,2,3]\ldots
+\end{align*}
+$\mathbf{Nil}$ or $\mathbf{[~]}$ represents an empty list, $\mathbf{Cons(1,Nil)}$ or $\mathbf{[1]}$ represents a singleton list containing only integer 1 etc. 
+\subsubsection {case Construct}\label{SeqMPL:caseConstruct}
+{\sf case} is a powerful MPL construct used with data types. Its syntax is:
+\begin{align*}
+      \mathbf{case~~}&\mathbf{t~~ of}\\
+      &\mathbf{C_1~~us_1~~\to t_1} \\
+      &\mathbf{\qquad\qquad \vdots} \\
+      &\mathbf{C_n~~us_n~~\to t_n}\\
+\end{align*}
+First argument of the {\sf case} construct is a sequential term represented in the syntax by $\mathbf {t}$. The sequential term $\mathbf {sterm}$ evaluates to a data type, say $\mathbf {D}$ in this case.
+~~\\~~\\
+{\sf case} branches on the constructors of a data type (in this case, data type $\mathbf {D}$) and selects a particular branch based on what the first argument $\mathbf {t}$ evaluates to. In the {\sf case} syntax $\mathbf{C_1,\ldots,C_n}$ are the constructors of the data type $\mathbf {D}$. $\mathbf {us_i}$ is the list of arguments (which are sequential terms) that the constructor $\mathbf {C_i}$ takes. Once a particular branch say $\mathbf {C_k}$ is selected, the term corresponding to the constructor, in this case $\mathbf {t_k}$ is executed.
+~~\\~~\\
+Two examples that use {\sf case} construct on data types, namely $\mathbf {Nat}$ and $\mathbf {List}$ data type, are discussed below.
+~~\\~~\\ 
+Figure \ref{seqMPL:caseExampleFirst} shows an example of a function $\mathbf{convNatToInt}$ where $\mathbf{Nat}$ data type is cased on. The function $\mathbf{convNatToInt}$ takes the $\mathbf{Nat}$ representation as input and returns the corresponding integer representation. $\mathbf{convNatToInt}$ is a recursive function that returns the integer 0 for the  $\mathbf{Zero}$ constructor. For the $\mathbf{Succ(n)}$ branch, the function adds 1 for the  $\mathbf{Succ}$ constructor and calls itself recursively on argument $\mathbf{n}$. The function is essentially counting the numbers of the $\mathbf{Succ}$ constructor in a $\mathbf{Nat}$ representation.
+~~\\~~\\
+Figure \ref {seqMPL:caseExampleSecond} shows an example of a function that takes two lists as inputs and gives as output the appended list. The function cases on the first list. Note that instead of listing $\mathbf{Nil}$ and $\mathbf{Cons}$ in the two branches, the convenient syntax, $\mathbf{[~]}$ for $\mathbf{Nil}$ and $\mathbf{:}$ for $\mathbf{Cons}$, is used. Corresponding to the $\mathbf{Nil}$ branch, the second list is returned. In the $\mathbf{Cons}$ branch containing two arguments, the first argument of the $\mathbf{Cons}$ is added to the beginning of the list obtained as a result of appending the second argument of the $\mathbf{Cons}$ to the second list.
+\begin{figure}[!h]
+\begin{alltt}
+
+              data Nat -> C = Zero ::   -> C 
+                              Succ :: C -> C
+
+              -- convert Nat representation to Integer
+              convNatToInt :: Nat -> Int =
+                nat -> case nat of
+                         Zero    -> 0
+                         Succ(n) -> 1 + convNatToInt(n) 
+\end{alltt} 
+\caption{Using case construct with Nat data type}
+\label{seqMPL:caseExampleFirst}
+\end{figure} 
+
+\begin{figure}[!h]
+\begin{alltt}
+
+              data List(A) -> C = Nil  ::     -> C 
+                                  Cons :: A,C -> C
+
+              -- append two lists
+              append :: List(A),List(A) -> List(A) =
+                t1,t2 -> case t1 of
+                           []    -> t2
+                           x:xs  -> x:append(xs,t2) 
+\end{alltt} 
+\caption{Using case construct with List data type}
+\label{seqMPL:caseExampleSecond}
+\end{figure} 
+\subsubsection {fold construct}\label{SeqMPL:foldConstruct}
+Recursion is an important tool when developing sequential MPL programs. {\sf fold} is an MPL construct that allows programmers to use recursion in a disciplined manner. Functions written using {\sf fold} construct belong to a set of functions called Higher Order Primitive Recursive Functions. Functions belonging to the set of Higher Order Primitive Recursive Functions have a property that they terminate, a useful property to have in a function.
+~~\\~~\\
+The syntax of {\sf fold} is:
+\begin{align*}
+      \mathbf{fold~~}&\mathbf{t~~ of}\\
+      &\mathbf{C_1~:~us_1~~\to t_1} \\
+      &\mathbf{\qquad\qquad \vdots} \\
+      &\mathbf{C_n~:~us_n~~\to t_n}\\
+\end{align*}
+where term $\mathbf{t}$ is being folded over. The type of $\mathbf{t}$ is a data type. If the type of $\mathbf{t}$ is a data type $\mathbf{D}$ then $\mathbf{C_1,\ldots,C_n}$ are the constructors of $\mathbf{D}$. $\mathbf{us_i}$ is the sequence of arguments and $\mathbf{t_i}$ is the term associated with the constructor $\mathbf{C_i}$.
+~~\\~~\\
+Two examples have been discussed below that describe folding over $\mathbf{Nat}$ and $\mathbf{List}$ data types. The same examples were written with {\sf case} construct using normal recursion in Figure \ref{seqMPL:caseExampleFirst} and \ref{seqMPL:caseExampleSecond}.
+~~\\~~\\ 
+Figure \ref {seqMPL:foldExampleFst} shows a program that takes a natural number in the $\mathbf{Nat}$ representation and converts it to corresponding integer notation. The {\sf fold} construct is used to write this program. The general type of the {\sf fold} construct for $\mathbf{Nat}$ data type is:
+\begin{align*}
+  foldNat~::~C~,~(C \to C)~,~ Nat ~\to~ C
+\end{align*}
+The type of $\mathbf{foldNat}$ construct represents that it has three inputs: first argument is a function that handles the $\mathbf{Zero}$ constructor, second argument is a function that handles the $\mathbf{Succ}$ constructor and the third argument is the $\mathbf{Nat}$ data type being folded over. Since the $\mathbf{Zero}$ constructor doesn't take any input, the corresponding function is a constant function as seen by its type. If the output type expected as a result of folding over $\mathbf{Nat}$ is $\mathbf{C}$ then the functions corresponding to both the constructors should output a term of type $\mathbf{C}$. 
+~~\\~~\\ 
+In the program in Figure \ref {seqMPL:foldExampleFst}, corresponding to the $\mathbf{Zero}$ case, integer 0 is returned. Corresponding to the $\mathbf{Succ}$ case, the $\mathbf{Nat}$ argument of $\mathbf{Succ}$ has been folded over and is already in its integer representation. All that remains to be done is to add 1 to the integer representation of the $\mathbf{Succ}$ argument.
+~~\\~~\\ 
+Figure \ref {seqMPL:foldExampleSnd} shows a program that takes two lists and converts appends them. The {\sf fold} construct is used to write this program. The general type of the {\sf fold} construct for $\mathbf{List}$ data type is:
+\begin{align*}
+  foldList~::~C~,(A,C \to C)~,~ List(A) ~\to~ C
+\end{align*}
+In the program in Figure \ref {seqMPL:foldExampleSnd}, corresponding to the  $\mathbf{Nil}$ constructor, the second list is returned. Corresponding to the $\mathbf{Cons}$ constructor, the first argument of $\mathbf{Cons}$ is consed infront of its second argument.
+
+\begin{figure}[!h]
+\begin{alltt}
+
+                data Nat -> C = Zero ::   -> C 
+                                Succ :: C -> C
+
+                -- convert Nat representation to Integer
+                convNatToInt:: Nat -> Int =
+                  nat -> fold nat of
+                           Zero     -> 0
+                           Succ : n -> 1 + n 
+\end{alltt} 
+\caption{folding over Nat data type}
+\label{seqMPL:foldExampleFst}
+\end{figure} 
+
+\begin{figure}[!h]
+\begin{alltt}
+
+                data List(A) -> C = Nil  ::     -> C 
+                                    Cons :: A,C -> C
+
+                -- append two lists
+                append :: List(A),List(A) -> List(A) =
+                  t1,t2 -> fold t1 of
+                             Nil  :    -> t2
+                             Cons :x,r -> x:r
+\end{alltt} 
+\caption{folding over List data type}
+\label{seqMPL:foldExampleSnd}
+\end{figure} 
+
+\section {Codata Type and Constructs for Codata Type}\label{SeqMPL:codataandCDCons}
+MPL allows the programmers to define codata types, a facility lacking in most functional programming languages. A functional language with the facility of codata types is the programming language Charity by Cockett. Codata types provide means of representing potentially infinite structures that are evaluated lazily.
+~~\\~~\\
+Syntax of the codata definition in MPL is:
+\begin{align*} 
+\mathbf{codata~~Z~\to~C(A_1,\ldots,A_n)~~=~~}
+        &\mathbf{D_1: Z~\to~F_1~\tilde{P_1}~Z}\\
+        &\mathbf{\qquad\qquad \vdots} \\    
+        &\mathbf{D_n: Z~\to~F_n~\tilde{P_n}~Z}
+\end{align*}
+Noticeable things about the codata type defintion are below:
+\begin{itemize}
+  \item The name of the codata type defined is $\mathbf{C}$
+  \item The syntax $\mathbf{Z~\to~C(A_1,\ldots,A_n)}$ conveys that a codata type is a final algebra.
+  \item $\mathbf{\{A_1,\ldots,A_n\}}$ is the set of type parameters/type variables of the codata type $\mathbf{C}$.
+  \item $\mathbf{D_1,\ldots,D_n}$ are the destructors of the codata type $\mathbf{C}$.
+  \item $\mathbf{\tilde{P_i}}$ is the set of type parameters used in destructor $\mathbf{D_i}$ such that $\mathbf{\tilde{P_i}}$ is a subset of $\mathbf{\{A_1,\ldots,A_n\}}$.
+  \begin{align*}
+    \tilde{P_i}~\subseteq~(A_1,\ldots,A_n)
+  \end{align*}
+  \item The union of all the ${P_i}$ should result in set $\{A_1,\ldots,A_n\}$.   
+  \begin{align*}
+    \bigcup\limits_{i=1}^{n}~\tilde{P_i}~=~\{A_1,\ldots,A_n\}
+  \end{align*}
+  \item $\mathbf{F_i~\tilde{P_i}~Z}$ is a type using the type variables $\mathbf{P_i}$ and $\mathbf{Z}$. $\mathbf{F_i~\tilde{P_i}~Z}$ is the output type of destructor $\mathbf{D_i}$.
+\end{itemize}
+\subsection {Examples of Codata Type}
+\subsubsection{InfList Codata Type}
+$\mathbf{InfList}$ codata type is defined as:
+\begin{alltt}
+          codata C -> InfList(A) = Head :: C -> A  
+                                   Tail :: C -> C  
+\end{alltt}
+As the name suggests $\mathbf{InfList(A)}$ data type can be used to store infinite list of things of type $\mathbf{A}$. $\mathbf{InfList(A)}$ has two destructors, $\mathbf{Head}$ and $\mathbf{Tail}$. $\mathbf{Head}$ destructor is a function that takes an infinite list of elements of type $\mathbf{A}$ and returns the first element of the infinite list. $\mathbf{Tail}$ destructor is a function that takes an infinite list of elements of type $\mathbf{A}$, removes the first element and returns remainder of the list.
+\subsubsection{Lazy Triple}
+Triple can be defined in MPL using codata types as:
+\begin{alltt}
+          codata C -> Triple(D,E,F) = Proj\(0\) :: C -> D
+                                      Proj1 :: C -> E
+                                      Proj2 :: C -> F
+
+\end{alltt}
+Triple has three destructors, $\mathbf{Proj0, Proj1, Proj2}$. These destructors can then be used to get the first, second or the third element from the triple.
+~~\\~~\\ 
+Since tuples/products are useful programming constructs to have in a language, MPL allows the programmers to use a $\mathbf{n}$-tuple without defining the codata type for it. $\mathbf{\#i}$ can used to project the \texttt{$\mathbf{i^{th}}$} element (for $\mathbf{1~\leq~n}$) from the $\mathbf{n}$-tuple.
+\subsection {record and destructor Constructs}
+A {\sf record} is used to hold value of a codata type. The {\sf record} construct has the form:
+  \begin{align*}
+    \mathbf{(:~D_1~us_1~:=~t_1,\ldots,D_n~us_n~:=~t_n~:)}
+  \end{align*}
+Here, $\mathbf(:~:)$ is the special synatx for records. $\mathbf{D_i}$ is the $\mathbf{i^{th}}$ destructor of the codata type, the record of which is being formed and $\mathbf{us_i}$ is the sequence of arguments corresponding to the destructor.
+~~\\~~\\
+The following record creates an record of $\mathbf{Triple}$ codata type:
+\begin{alltt}
+              (: Proj\(0\) := 1 , Proj1 := 2.3 , Proj2 := ``Hello'' :)
+\end{alltt}
+{\sf Destructors} retrieve value from a record. The MPL term 
+\begin{alltt}
+              Proj2 (: Proj\(0\) := 1 , Proj1 := 2.3 , Proj2 := ``Hello'' :)
+\end{alltt}
+will evaluate to {\bf ``Hello''}.
+~~\\~~\\ 
+The above triple can directly be written in MPL without defining the {\bf Triple} codata type as below:
+\begin{alltt}
+              (1, 2.3, ``Hello'')
+\end{alltt}
+The MPL term $\mathbf{\texttt{~\#3~(1,~2.3,~``Hello'')}}$ will evaluate to \texttt{``Hello''}.
+\subsection {unfold construct}
+{\sf unfold} construct is a constructive operation for codata types. Codata types are built using {\sf unfold}. Syntax of {\sf unfold} is:
+\begin{align*} 
+&\mathbf{unfold}\\
+&\qquad\mathbf{s~~\Rightarrow}  \\
+&\qquad\qquad\mathbf{D_1~:~us_1~\to~~t_1} \\
+&\qquad\qquad\mathbf{\qquad\quad \vdots} \\
+&\qquad\qquad\mathbf{D_n~:~us_n~~\to~~t_n}\\
+&\mathbf{on~~t}
+\end{align*}
+\begin{itemize}
+  \item $\mathbf{D_1,\ldots,D_n}$ are destructors of a codata type.
+  \item $\mathbf{us_i}$ is the sequence of arguments corresponding to the destructor $\mathbf{D_i}$ and $\mathbf{t_i}$ is the corresponding term.
+  \item The set of terms corresponding to the different destructors are also known as the threads of the {\sf unfold}.
+  \item $\mathbf{s}$ is a state accessible to all the destructors $\mathbf{D_1,\ldots,D_n}$.
+  \item $\mathbf{t}$ is initial value that is to be unfolded.
+\end{itemize}
+In Figure \ref{seqMPL:unfoldExample}, {\sf unfold} construct is used to generate an infinite list of natural numbers starting from 0. The initial value supplied to the unfold is 0. The thread corresponding to the $\mathbf{Head}$ destructor generates the current state and the thread corresponding to the $\mathbf{Tail}$ destructor generates the next state. 
+\begin{figure}[!h]
+\begin{alltt}
+                codata C -> InfList(A) = Head :: C -> A  
+                                         Tail :: C -> C  
+
+
+                -- infinite list of numbers starting from 0
+                genNat :: \(()\) -> InfList(A) =
+                   -> unfold
+                        n => 
+                          Head : -> n
+                          Tail : -> n + 1
+                      on \(0\)    
+\end{alltt} 
+\caption{Using unfold to generate an infinite list of numbers}
+\label{seqMPL:unfoldExample}
+\end{figure}
+
+\section {Non Data/Codata Constructs}\label{SeqMPL:IndCons}
+These are the MPL constructs that are not used with either the data types or the codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant} and {\sf if-then-else} constructs.
 \subsection {function call construct}
-\subsection {if construct}
+MPL allows the programmer to define their own functions. It also has inbuilt functions such as addition, subtraction, multiplication, divison, equality testing etc. Both the classes of functions can be called in MPL functions or processes. Syntax of a function call is:
+\begin{align*} 
+&\mathbf{fname~~(arg_1,\ldots,arg_n)}
+\end{align*}
+where $\mathbf{fname}$ is the function (defined/builtin) being called with $\mathbf{n}$ arguments $\mathbf{arg_1,\ldots,arg_n}$. The arguments
+~~\\~~\\
+The function should be called with the right number of parameters otherwise a semantic error is raised. 
+\subsection {if-then-else construct}
+$\mathbf{if\texttt{-} then\texttt{-}else}$ is a sequential construct that takes three arguments. It syntax is:
+\begin{align*} 
+&\mathbf{if~~{\it boolean} ~~then~~ {\it term_1}~~ else~~ {\it term_2}}
+\end{align*}
+where the first argument is a sequential MPL construct that evaluates to a boolean value. If the boolean value evaluates to $\mathbf{true}$ then $\mathbf{term_1}$ is executed else $\mathbf{term_2}$ is executed.
 \subsection {variable construct}
+$\mathbf{variables}$ construct allows MPL programs to use variable names in the body of an MPL program. The variable names used in the program should be introduced either through a variable pattern or through a local variable definition through a where construct. A variable name used inside an MPL program without being introduced legally results in a semantic error.
 \subsection {constant construct}
+Constants which can be integers, floats, characters, or strings can be used in the body of an MPL program.
 \subsection {where construct}
+{\sf where} is a sequential MPL construct used to define:
+\begin{itemize}
+\item local functions that are needed only inside the body of a given function, and
+\item local variables that can be used in the body of the function.
+\end{itemize}
+Figure \ref {seqMPL:whereExam} shows an example of an MPL function that uses 
+the {\sf where} construct. 
+The function $\mathbf{fahToKel}$ function takes temperature in degree Fahrenheit and converts it to the temperature in Kelvin. This conversion is achieved by first converting degree Fahrenheit to degree Celsius and then converting degree Celsius to Kelvin.
+~~\\~~\\ 
+Function $\mathbf{fahToCel}$ is a local function defined using the {\sf where} construct which converts degree Fahrenheit to degree Celsius using the relation $\degree C~=~(5*\degree F - 160)/9$ where $\degree C$ and $\degree F$ are the temperature in Celsius and Fahrenheit respectively. The function $\mathbf{fahToCel}$ is visible only inside the body of function $\mathbf{fahToKel}$. 
+~~\\~~\\ 
+The calculation to convert degree Celsius to Kelvin is stored in variable $\mathbf{kel}$. The relation between Celsius and kelvin is $K = \degree C + 273$ where $K$ is the tempearture in Kelvin. The local variable $\mathbf{kel}$ can then be used inside the main body of the function $\mathbf{fahToCel}$. Thus, using the {\sf where} construct a seemingly compilcated looking program can be broken down into simpler components and can be cleanly implemented.
+\begin{figure}[!h]
+\begin{alltt}
+                -- convert degree Fahrenheit to Kelvin
+                fun fahToKel :: Double -> Double =
+                  fah -> kel 
+                      where
+                        kel = fahToCel(fah) + 273.15
+                        fahToCel :: Double -> Double =
+                            fah -> (5*fah - 160)/9
+\end{alltt} 
+\caption{using where construct}
+\label{seqMPL:whereExam}
+\end{figure} 
 
-\section {Data Type Constructs}
-These constructs are used with data types. They are {\sf case}, {\sf constructor} and {\sf fold} constructs.
-\subsection {case construct}
-\subsection {data constructor construct}
-\subsection {fold construct}
+\subsection {switch construct}
+The {\sf switch} construct is of the form:
+\begin{align*} 
+&\mathbf{switch}\\
+&\qquad\mathbf{p_1~=~t_1} \\
+&\qquad\mathbf{\qquad \vdots} \\
+&\qquad\mathbf{p_n~=~t_n}\\
+&\qquad\mathbf{default~=~t_{def}}\\
+\end{align*}
+{\sf switch} consists of a list of pairs of terms. Each pair $\mathbf{(p_i,t_i)}$ corresponds to a line in the body of the {\sf switch} construct. All the first elements of the list of pairs must return a boolean value. The first term from $\mathbf{p_1,\ldots,p_n}$ to returns a $\mathbf{True}$ will have its corresponding term executed. If none of $\mathbf{p_1,\ldots,p_n}$ return a true then the term $\mathbf{t_{def}}$ corresponding to the $\mathbf{default}$ case is executed.
+~~\\~~\\ 
+Figure \ref {seqMPL:switchExam} shows an example where {\sf switch} construct is used. 
+Function $\mathbf{monthName}$ takes an integer as input. If the integer is between one and twelve it returns a string which is the name of the corresponding month otherwise it returns a string saying that the month number is invalid.
+\begin{figure}[!h]
+\begin{alltt}
+                -- convert month number to month name
+                fun monthName :: Int -> String =
+                  month -> switch
+                               month == 1 = ``January''
+                               month == 2 = ``February''
+                               month == 3 = ``March''
+                               month == 4 = ``April''
+                               month == 5 = ``May''
+                               month == 6 = ``June''
+                               month == 7 = ``July''
+                               month == 8 = ``August''
+                               month == 9 = ``September''
+                               month == 10 = ``October''
+                               month == 11 = ``November''
+                               month == 12 = ``December''
+                               default     = ``Invalid month number''
+\end{alltt} 
+\caption{using switch construct}
+\label{seqMPL:switchExam}
+\end{figure} 
 
-\section {Codata Type Constructs}
- These constructs are used with codata types. They are {\sf record} and {\sf destructor} constructs.
-\subsection {record construct}
-\subsection {destructor construct}
-\subsection {product construct}
+
+\section{Pattern Matching}\label {SeqMPL:IntPmatch}
+Like most functional programming languages, for example- Haskell, OCaml, ML etc, sequential MPL supports pattern matching. An abstraction
+\begin{align*}
+  v_1,\ldots,v_n~~\to t 
+\end{align*}
+generalizes to the patterned abstraction
+\begin{align*}
+  &p_{1,1},\ldots,p_{1,n}~~\to t_1\\
+  &\qquad \qquad\vdots \\
+  &p_{m,1},\ldots,p_{m,n}~~\to t_m\\
+\end{align*}
+which is a list of pattern-term phrase. A pattern-term phrase consists of a list of patterns and a sequential term corresponding to it. When using pattern matching, term $\mathbf{t_i}$ is executed only if $\mathbf{p_{i,1},\ldots,p_{i,n}}$ is the first pattern list which matches the input.
+~~\\~~\\
+Variables, constructors, records and products can be used as patterns giving variable patterns, constructor patterns, record patterns and product patterns respectively. Sometimes, elements of a pattern aren't used in the corresponding term of the pattern-term phrase. A special kind of pattern called the don't care pattern represented by an underscore (\texttt{``\_''}) is used in such a case.  
+~~\\~~\\
+Pattern matching is compiled to {\sf case} statements. The compilation of pattern matching to case has been described in Chapter.
+~~\\~~\\ 
+Figure {seqMPL:pattMatchExample} gives a few examples of the use of pattern matching in MPL functions. Function $\mathbf{isZero}$ takes an input of type $\mathbf{Nat}$ and returns $\mathbf{True}$ if the input is $\mathbf{Zero}$ and $\mathbf{False}$ otherwise. $\mathbf{isZero}$ uses a constructor pattern in the first pattern-term phrase and a don't care pattern in the second pattern-term phrase.
+~~\\~~\\ 
+$\mathbf{or}$ function in Figure \ref{seqMPL:pattMatchExample} takes a pair of booleans and returns $\mathbf{True}$ if either of the elements of the pair is $\mathbf{True}$ and $\mathbf{False}$ otherwise. $\mathbf{or}$ function definition uses different kinds of patterns for pattern matching: product patterns, constructor patterns and don't care patterns. An interesting things to note here is that constructor and don't care patterns have been used inside of a product pattern. A pattern that contains other patterns is called a nested pattern. 
+~~\\~~\\ 
+$\mathbf{thirdProj}$ function in Figure \ref{seqMPL:pattMatchExample} takes a record pattern of type $\mathbf{Triple(D,E,F)}$ and returns the element corresponding to the third destructor from the pattern. 
+\begin{figure}[!h]
+\begin{alltt}
+
+              -- check if the natural number is zero
+              isZero :: Nat -> Bool =
+                Zero -> True
+                _    -> False
+
+
+              -- boolean or function
+              or :: (Bool,Bool) -> Bool =
+                (True,_) -> True  
+                (_,True) -> True
+                _        -> False
+              
+              -- third projection function
+              thirdProj :: Triple(D,E,F) -> F =
+                (:Proj\(0\) := x, Proj1 := y, Proj2 := z :) -> z
+\end{alltt} 
+\caption{Examples of pattern matching}
+\label{seqMPL:pattMatchExample}
+\end{figure}
+
+\section {Higher Order Functions in MPL}\label{SeqMPL:HigherOrder}
+Higher order functions can defined in MPL using a simple higher order codata data type called $\mathbf {Exp}$ (exponential) defined as:
+\begin{alltt}
+          codata C -> Exp(A,B) = App : A,C -> B
+\end{alltt}
+The type of the destructor $\mathbf{App}$ (function application) is: 
+\begin{align*}
+  \mathbf{A,~Exp(A,B)~ \to~ B}
+\end{align*}
+$\mathbf{Exp(A,B)}$ is the type of total functions from type $\mathbf{A}$ to type $\mathbf{B}$ and is also written as $\mathbf {A~\Rightarrow B}$ or $\mathbf{B^{A}}$ in literature. An example that uses the exponential codata type to implement a function $\mathbf{\lambda x.x+1}$ is: 
+\begin{alltt}
+                fun lambdaFun  =
+                   ->  (: App(x) :=  x + 1 :)          
+\end{alltt}
+Here, function $\mathbf{lambdaFun}$ form a record of $\mathbf{Exp}$ codata type which can then be destructed using the $\mathbf{App}$ destructor presumably inside the body of another function. The term $\mathbf{App~(5,lambdaFun())}$ will evaluate to 6. Thus $\mathbf{Exp}$ data type provides a mechanism to pass a function as input to other functions.
+
 \end {document}
