@@ -76,47 +76,98 @@ In this chapter, the difference between the {\sf defn} and {\sf where} construct
 Although both {\sf defn} and {\sf where} can be used to define local functions, there is a significant difference these constructs: the {\sf defn} construct doesn't allow local variables while the main of the {\sf where} construct is to allow non local variables. This has been described in Section \ref {lam:defnOverview} and Section \ref {lam:whereOverview} with examples.
 
 \subsection {defn Construct}\label{lam:defnOverview}
-The {\sf defn} construct is used to modularize programs in MPL. Table \ref {lam:defnExample} shows an example of a pattern matching compiled MPL program that uses the {\sf defn} construct. The program takes two lists and returns backs a list where each element of the final list is the sum of the corresponding elements of the original list. In case of lists of unequal length, the sum of the corresponding elements is calculated till the elements in the smaller list is exhausted and the remaninder of the elements in the longer list are ignored. 
-~~\\~~\\
-As can be seen in Table \ref {lam:defnExample}, {\sf defn} consists of two components:
+The {\sf defn} construct is used to modularize programs in MPL. The {\sf defn} construct has the form:
+\begin{align*}
+  & \mathbf{defn} \\ 
+  &\mathbf{\quad definition_1} \\
+  &\mathbf{\qquad\quad \vdots} \\
+  &\mathbf{\quad definition_m}\\
+  &\mathbf{where} \\ 
+  &\mathbf{\quad definition_1} \\
+  &\mathbf{\qquad\quad \vdots} \\
+  &\mathbf{\quad definition_n}\\  
+\end{align*}
+As can be seen in above, {\sf defn} consists of two components:
 \begin{itemize}
   \item {\bf Main body of defn}: MPL definitions between the keywords {\bf defn} and {\bf where} form the main body of {\sf defn}. These definitions can be (co)data, (co)protocol, process, or function definitions. These definitions are visible to the entire MPL program.
 
-  \item {\bf where clause of defn}: There may be some definitions that are required only for the definitions in the main body of the {\sf defn} construct. These definitions are written in the {\bf where} clause of the {\sf defn} construct. Scope of a definition in the {\bf where} clause of {\sf defn} is:
-  \begin{itemize}
-    \item other definitions in the where clause, and
-    \item the definitions in the main body of the {\sf defn} construct.
-  \end{itemize}
+  \item {\bf where clause of defn}: {\bf where} clause also allows for definitions. However, the scope of these defintions are different from the scope of definitions in the {\bf main body} of the {\sf defn} construct. The (co)data definitions in the {\bf where} clause of {\sf defn} are only visible to the other definitions in the  {\bf where} clause of that {\sf defn}. The function definitions are visible to the other definitions in the  {\bf where} clause as well as the {\bf main body} of that {\sf defn}.
+\end{itemize}  
+Table \ref {lam:defnExample} shows an example of a pattern matching compiled MPL program that uses the {\sf defn} construct.
+The program defines a $\mathbf{Tree}$ data structure and a $\mathbf{treeToBST}$ function. $\mathbf{treeToBST}$ takes a normal tree and returns a binary serach tree (BST) corresponding to the original binary tree. A BST is a binary tree with the following properties:
+\begin{itemize} 
+  \item All the elements in left subtree of any given node are smaller than the node element.
+  \item All the elements in right subtree of any given node are greater than the node element
+  \item Duplicate elements are not allowed.
 \end{itemize}
-For example, in Table \ref {lam:defnExample}, the {\bf List} data type is in the scope of functions {\bf helperfun}, and {\bf zipSum} and not in scope of {\bf mainFun}. Similarly, function {\bf helperFun} is in the scope of function {\bf zipSum} and not in the scope of {\bf mainFun}. Function {\bf zipSum} is in scope of function {\bf mainFun}. Thus MPL uses {\sf defn} construct to implement data hiding and to control the visibility of definitions.
-~~\\ ~~\\
+The strategy used in the example in Table \ref {lam:defnExample} to convert the binary tree to a binary search tree makes 
+use of $\mathbf{List}$ data structure which is defined in the {\bf where} clause of the {\sf defn} construct. Program extracts the list of integers from the original tree. This list is then used to create a BST by inserting each element of list in a way that the BST property is never violated.
+~~\\~~\\
+Function $\mathbf{insertBST}$ takes an integer and inserts it into a BST such that resultant tree is also a BST. Function $\mathbf{fromListToBST}$ folds over a list creating a BST with the elements of the list. Function $\mathbf{getIntList}$ folds over a binary tree of integers and gets the list of integers from the tree. $\mathbf{append}$ function appends two lists. Function $\mathbf{createBST}$ takes a tree of integers, gets the list of integers from the tree and subsequently returns a BST made out of the list of integers extracted from the input tree. All the functions mentioned in this paragraph have been defined {\bf where} clause of the {\sf defn} construct.
+~~\\~~\\
+The function $\mathbf{treetoBST}$ defined in the {\bf main body} of {\sf defn} construct takes a binary tree and returns a BST by calling the $\mathbf{createBST}$ function defined in the {\bf where clause} of the {\sf defn} construct.
+~~\\~~\\ 
+The $\mathbf{List}$ data type is visible only to the functions in the {\bf where} clause of that {\sf defn} and not to the definitions in the {\bf main body} of {\sf defn} or to any definitions in MPL outside the {\sf defn} construct. The functions {\bf append, insertBST, fromListToBST, getIntList,} and {\bf createBST} are visible only to the other functions in the {\bf where clause} or to the defintions in the {\bf main body} of that {\sf defn}.
+~~\\~~\\ 
+This scoping scheme has the advantage that the function {\bf treetoBST} doesn't need to know the underlying implementation of the {\bf createBST} function which can be changed at anytime without impacting any other aspect of the MPL program.
+~~\\~~\\ 
 In Section \ref {lam:algDefn}, the lambda lifting algorithm for the {\sf defn} construct is discussed.
 
-\begin{table}[!h]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{5in}
 \begin{alltt}
-
-
-  fun mainFun = 
-      x,y -> zipSum(x,y)
-  
   defn
-    fun zipSum =
-      x,y -> helperFun (x,y)
+    data Tree(A) -> C = Leaf :: -> C
+                        Node :: A,C,C -> C
+
+    fun TreeToBST :: Tree(Int) -> Tree(Int) =
+      tree -> createBST(tree)
+
   where 
     data List(A) -> C = Nil  ::     -> C
                         Cons :: A,C -> C 
+    
+    -- append two lists
+    append :: List(A),List(A) -> List(A) =
+      t1,t2 -> fold t1 of
+                 Nil  :    -> t2
+                 Cons :x,r -> Cons(x,r)
 
-    fun helperFun 
-      l1,l2 ->
-        case l1 of 
-          Nil -> Nil
-          Cons(x,xs) -> case l2 of
-                          Nil -> Nil
-                          Cons(y,ys) -> Cons((x+y),helperFun(xs,ys))
+    -- take an integer and inserts it into a Binary Search Tree 
+    fun insertBST :: Int,Tree(Int) -> Tree(Int) =
+      elem,bst ->
+        case bst of
+          Leaf -> 
+            Node (elem,Leaf,Leaf) 
+          Node(n,t1,t2) -> 
+            case (n == elem) of
+              True  -> 
+                bst 
+              False ->
+                case (elem < n) of
+                  True ->
+                    Node (n,insertBST (elem,t1),t2)
+                  False ->
+                    Node (n,t1,insertBST(elem,t2))
 
+    -- takes a list of integers and creates a binary
+    -- search tree out of it
+    fun fromListToBST :: List(Int) -> Tree(Int) =
+      list -> fold list of
+                Nil  :     -> Leaf
+                Cons : x,r -> insertBST(x,r)  
+    
+    -- get a list of integers from a tree of integers
+    fun getIntList :: Tree(Int) -> List(Int) = 
+      tree -> fold tree of
+                Leaf : -> Nil
+                Node :x,ls1,ls2 -> append (Cons(x,ls1),ls2)
+
+    -- take a simple binary tree and return a BST
+    fun createBST :: Tree(Int) -> Tree(Int) =
+      tree -> fromListToBST (getIntList (tree))
 \end{alltt} 
 \end {minipage} 
 \tabularnewline
@@ -224,75 +275,144 @@ Steps in lambda lifting the local functions of {\sf defn} construct are be liste
   \item Rename the function names of the function definitions in the {\sf where} clause to unique new global names. Once functions are renamed, the function calls made with old names should be altered to reflect the name change.
   \item The definitions in the {\bf main body} and the {\bf where} clause of defn can now be lifted to the outermost scope.
 \end{itemize}
-The steps have been applied to function definitions in the {\bf where} clause of the {\sf defn} construct in the program in Table \ref {lam:defnExample}. These steps have been shown in Table \ref {lam:LamLiftDefn}.
+The steps have been applied to function definitions in the {\bf where} clause of the {\sf defn} construct in the program in Table \ref {lam:defnExample}. The steps of lambda lifting have been shown in Table \ref {lam:LamLiftDefn1} and \ref {lam:LamLiftDefn2}. Table \ref {lam:LamLiftDefn1} shows the step where the local functions in the 
+{\bf where clause} of the {\sf defn } construct is renamed to unique global names. Table \ref {lam:LamLiftDefn2} shows the step where the renamed functions in the 
+{\bf where clause} of the {\sf defn } construct are lifted to the outermost scope.
 
 \begin{table}
 \begin{center}
-\begin{tabular}{|c|}\hline\\ 
-{\bf Rename local function helperFun of {\sf defn} to uniqNm1}\\~~\\  
-\hline
-\begin{minipage}{5.5in}
-\begin{alltt}
-
-
-  fun mainFun = 
-      x,y -> zipSum(x,y)
-  
-  defn of
-    fun zipSum =
-      x,y -> uniqName1(x,y)
-
-  where 
-        data List(A) -> C = Nil  ::     -> C
-                            Cons :: A,C -> C 
-
-        fun uniqName1 
-          l1,l2 ->
-            case l1 of 
-              Nil -> Nil
-              Cons(x,xs) -> case l2 of
-                              Nil -> Nil
-                              Cons(y,ys) -> Cons((x+y),uniqName1(xs,ys))
-
-
-\end{alltt} 
-\end {minipage} \\ 
-\hline \\
-{\bf Push the definitions of {\sf defn} to the global scope}\\~~\\  
-\hline
+\begin{tabular}{|c|}\hline
 \begin{minipage}{5in}
 \begin{alltt}
 
+  defn
+    data Tree(A) -> C = Leaf :: -> C
+                        Node :: A,C,C -> C
 
-  data List(A) -> C = Nil  ::     -> C
-                      Cons :: A,C -> C 
+    fun TreeToBST :: Tree(Int) -> Tree(Int) =
+      tree -> unqFun5(tree)
 
-  fun uniqName1 
-    l1,l2 ->
-      case l1 of 
-        Nil -> Nil
-        Cons(x,xs) -> case l2 of
-                        Nil -> Nil
-                        Cons(y,ys) -> Cons((x+y),uniqName1(xs,ys))
+  where 
+    data List(A) -> C = Nil  ::     -> C
+                        Cons :: A,C -> C 
+    
+    -- append two lists
+    fun unqFun1 :: List(A),List(A) -> List(A) =
+      t1,t2 -> fold t1 of
+                 Nil  :    -> t2
+                 Cons :x,r -> Cons(x,r)
 
-  fun zipSum =
-      x,y -> uniqName1(x,y)
+    -- take an integer and inserts it into a Binary Search Tree 
+    fun unqFun2 :: Int,Tree(Int) -> Tree(Int) =
+      elem,bst ->
+        case bst of
+          Leaf -> 
+            Node (elem,Leaf,Leaf) 
+          Node(n,t1,t2) -> 
+            case (n == elem) of
+              True  -> 
+                bst 
+              False ->
+                case (elem < n) of
+                  True ->
+                    Node (n,unqFun2 (elem,t1),t2)
+                  False ->
+                    Node (n,t1,unqFun2 (elem,t2))
 
-  fun mainFun = 
-      x,y -> zipSum(x,y)
+    -- takes a list of integers and creates a binary
+    -- search tree out of it
+    fun unqFun3 :: List(Int) -> Tree(Int) =
+      list -> fold list of
+                Nil  :     -> Leaf
+                Cons : x,r -> unqFun2 (x,r)  
+    
+    -- get a list of integers from a tree of integers
+    fun unqFun4 :: Tree(Int) -> List(Int) = 
+      tree -> fold tree of
+                Leaf : -> Nil
+                Node :x,ls1,ls2 -> unqFun1 (Cons(x,ls1),ls2)
 
-
-
+    -- take a simple binary tree and return a BST
+    fun unqFun5 :: Tree(Int) -> Tree(Int) =
+      tree -> unqFun3 (unqFun4 (tree))
 
 \end{alltt} 
 \end {minipage} 
 \tabularnewline
 \hline
 \end{tabular}
-\caption{Lambda lifting Local functions defined with {\sf defn} construct}
-\label{lam:LamLiftDefn}
+\caption{Step 1 : Rename local functions of the {\sf defn} construct}
+\label{lam:LamLiftDefn1}
 \end{center}
 \end{table}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|}\hline
+\begin{minipage}{5in}
+\begin{alltt}
+
+    data List(A) -> C = Nil  ::     -> C
+                        Cons :: A,C -> C 
+
+    data Tree(A) -> C = Leaf :: -> C
+                    Node :: A,C,C -> C                    
+    
+    -- append two lists
+    fun unqFun1 :: List(A),List(A) -> List(A) =
+      t1,t2 -> fold t1 of
+                 Nil  :    -> t2
+                 Cons :x,r -> Cons(x,r)
+
+    -- take an integer and inserts it into a Binary Search Tree 
+    fun unqFun2 :: Int,Tree(Int) -> Tree(Int) =
+      elem,bst ->
+        case bst of
+          Leaf -> 
+            Node (elem,Leaf,Leaf) 
+          Node(n,t1,t2) -> 
+            case (n == elem) of
+              True  -> 
+                bst 
+              False ->
+                case (elem < n) of
+                  True ->
+                    Node (n,unqFun2 (elem,t1),t2)
+                  False ->
+                    Node (n,t1,unqFun2 (elem,t2))
+
+    -- takes a list of integers and creates a binary
+    -- search tree out of it
+    fun unqFun3 :: List(Int) -> Tree(Int) =
+      list -> fold list of
+                Nil  :     -> Leaf
+                Cons : x,r -> unqFun2 (x,r)  
+    
+    -- get a list of integers from a tree of integers
+    fun unqFun4 :: Tree(Int) -> List(Int) = 
+      tree -> fold tree of
+                Leaf : -> Nil
+                Node :x,ls1,ls2 -> unqFun1 (Cons(x,ls1),ls2)
+
+    -- take a simple binary tree and return a BST
+    fun unqFun5 :: Tree(Int) -> Tree(Int) =
+      tree -> unqFun3 (unqFun4 (tree))
+
+
+    fun TreeToBST :: Tree(Int) -> Tree(Int) =
+      tree -> unqFun5(tree)
+
+\end{alltt} 
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Step 2 : Lift the definitions of {\sf defn} to the global scope}
+\label{lam:LamLiftDefn2}
+\end{center}
+\end{table}
+
+
 
 \section {Lambda Lifting Local Functions of where Construct}\label{lam:algWhere}
 If one tries lifting the local functions of the {\sf where}, the free variables in the local functions of the {\sf where} construct will no longer be in scope. The lambda lifting algorithm for the {\sf where} construct is thus more complicated than that for the {\sf defn} construct because of the presence of non-local variables in the function definitions of the {\sf where} construct.

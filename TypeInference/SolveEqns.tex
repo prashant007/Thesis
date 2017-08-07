@@ -4,6 +4,7 @@
 \usepackage{amsmath }
 \usepackage{framed}
 \usepackage{proof}
+\usepackage{alltt}
 \usepackage{enumerate,xspace,stmaryrd}
 \usepackage{amsmath,amssymb,latexsym}
 \usepackage[dvips]{graphics}
@@ -20,25 +21,6 @@
 \AfterEndEnvironment{tabular}{\end{center}}
 
 
-\mdfdefinestyle{MyFrame}{%
-    linecolor=black,
-    linewidth=1pt
-    innertopmargin=\baselineskip,
-    innerbottommargin=\baselineskip,
-    leftmargin  = 2cm
-    rightmargin = 2cm,
-    frametitlealignment = \center
-    }
-
-\mdfdefinestyle{MyFrameSp}{%
-    linecolor=black,
-    linewidth=1pt
-    innertopmargin=\baselineskip,
-    innerbottommargin=\baselineskip,
-    leftmargin  = .5cm
-    rightmargin = .5cm,
-    frametitlealignment = \center
-    }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     Special symbol macros ...
@@ -50,11 +32,44 @@
 
 \maketitle
 \section {Solving Type Equations}
-Solving type equations involves two main steps.
+As seen in the previous section, a type equation is defined as one of the following two things:
+\begin{align*}
+ Type~Equation~:=~ 
+ & Type~Variable~=~Type~Expression,~~Or\\ 
+ & \forall u_1,\ldots,u_m~~\exists~v_1,\ldots,v_n~.~\{Type~Equation\}
+\end{align*}
+Tha above definiton of type equation can be expressed by Haskell data type \texttt{TypeEqn} as below:
+\begin{alltt}
+          type UniVars    = [String]
+          type ExistVars  = [String]
+
+          data TypeEqn =    TSimp  (Type,Type)
+                          | TQuant (UniVars,ExistVars) [TypeEqn] 
+\end{alltt}
 \begin{itemize}
-    \item First the equations are transformed into packages.This has been described in section \ref{GenPack} on page \pageref{GenPack}.
-    \item The generated packages are reduced to their normal form.This has been described in section \ref{RedPack} on page \pageref{RedPack}. 
+\item The non recursive/simple branch of the definition is representend by the constructor \texttt{TSimp} and the recursive branch containing the quantifiers is represented by the constructor \texttt{TQuant}. 
+\item The \texttt{TSimp} constructor takes a pair of type expressions as inputs represented by \texttt{Type} which is a data type defining the valid MPL types, both concurrent and sequential. 
+\item First argument of the \texttt{TQuant} constructor is a pair containing the list of universally and existentially quantified variables represented by the type snyonyms \texttt{UnivVars} and \texttt{ExistVars} respectively. Both \texttt{UnivVars} and \texttt{ExistVars} are type synonymous to a list of strings.
+\item The second argument of the type constructor \texttt{TQuant} is a list of type equations. Thus, the data type \texttt{TypeEqn} is a recursive data type.
 \end{itemize}
+
+\subsection {Solving}
+Solving type equations involves two steps:
+\begin{itemize}
+    \item First step of the solution of type equation deals with the transformation of the type equations to a data structure called {\bf package}. The package data structure and the transformation of type equations to the package data structure is described in Section .
+
+    \item The generated packages are reduced using specified reduction rules. The reduction rules for a package are described in Section . The reduction rule are repeatedly applied to the package till it reaches a normal form. The normal form of the package has been described in Section .
+\end{itemize}
+\subsection {Package}
+A {\bf package} is a four tuple of a pair of list of free variables, a list of universally quantified variables, a list of existentially quantified variables and a list of substitutions. The package data structure is defined by the Haskell type \texttt{Package} as shown below:
+\begin{alltt}
+  type FreeVars = String
+  type Substitution = (String,Type)
+
+  type Package = \bigg(\Big([FreeVars],[FreeVars]\Big),[ExistVars],[UnivVars],[Substitution]\bigg)
+\end{alltt}
+
+
  There are two main advantages of solving the type equations by converting them to packages.
 \begin{itemize} 
       \item Packages keep intact the ``hierarchical structure of the type inference tree for a construct'' and use it when solving the type equations. This results in faster solution of the type equations. 

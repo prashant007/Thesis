@@ -153,11 +153,7 @@ Figure \ref {fig:Conc_channels} describes a concurrent MPL program with three pr
   \item Service channels can be of either polarity, output or input. Input polarity service channels have a special name, {\bf console}. 
 \end {itemize}
 
-~~\\~~\\ 
-
-
-
-\begin{figure}[!h]
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[scale = .8,every node/.style={very thick}]
  \draw (0,0)  node[circle,draw=black,minimum size=0.4cm,align=center] (A) 
@@ -199,7 +195,6 @@ Figure \ref {fig:Conc_channels} describes a concurrent MPL program with three pr
 \label{fig:Conc_channels}\end{figure}
 
 \section {Processes}\label{Conc:ProcDesc}
-
 Concurrent MPL programs are organised using processes. An example of an MPL process definition has been provided in Figure \ref {fig:Conc_MPLProcs}. A few noticeable things about process definitions in MPL are below:
 
 \begin {itemize}
@@ -212,7 +207,7 @@ Concurrent MPL programs are organised using processes. An example of an MPL proc
 \end {itemize}
 
  
-\begin{figure}[!h]
+\begin{figure}
 \begin{alltt}
 
 
@@ -327,7 +322,7 @@ Concurrent MPL constructs are the constructs using which concurrent MPL programs
 \end{itemize}
 A brief description of all the concurrent MPL constructs has been provided in Table \ref {Conc:constr_desc}. In the next few sections (Section \ref {conc:run_desc} to Section \ref {conc:haltclosedesc}), various concurrent MPL constructs are described in details.
 
-\begin{table}[!h]
+\begin{table}
 \begin{center}
     \begin{tabular}{|l||l|}
     \hline 
@@ -365,7 +360,7 @@ Table \ref {Conc : runExample} shows an example of an MPL program where {\sf run
   \item Inside the main process, process {\bf p1} is {\sf run} (called) with 3 arguments, one sequential and two concurrent. The sequential argument in the process call is the integer value {\bf 5}. Concurrent arguments of a process call are the channels of that process. $\texttt{=>}$ separates concurrent input arguments (input channels) from concurrent output arguments (output channels). The concurrent input argument in the example is the service channel console and the concurrent output argument is the service channel intTerm1. 
   \item The process definition for $\mathbf{p1}$ has 1 sequential parameter, 1 input concurrent parameter and 1 output concurrent parameter. Thus the process call is consistent with the process definition with respect to the number of arguments of each type. 
 \end{itemize}
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{5in}
@@ -453,7 +448,7 @@ Process $\mathbf {P_3}$ reads the value on channel $\mathbf {ch2}$ which is an i
 ~~\\~~\\ 
 Process $\mathbf {P_1}$ reads the value on channel $\mathbf {ch1}$ which is an input channel for $\mathbf {P_1}$. $\mathbf {P_1}$ then puts this value on service channel $\mathbf {S2}$ after putting the appropriate handle. This value is now visible to the outside world.
 
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{5in}
@@ -514,7 +509,7 @@ Process $\mathbf {P_1}$ reads the value on channel $\mathbf {ch1}$ which is an i
 \end{table}
 
 
-\begin{figure}[!h]
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[ scale = 2,
                      every node/.style={very thick},draw = black,
@@ -577,7 +572,7 @@ Process $\mathbf{P_1}$ has an input polarity service channel $\mathbf{s1}$ and a
 Process $\mathbf{P_1}$ gets a value from outside world on $\mathbf{s1}$ and puts this value on $\mathbf{ch1}$. Since, $\mathbf{ch1}$ and $\mathbf{ch2}$ have been equated, the value put on $\mathbf{ch1}$ is available on $\mathbf{ch2}$ which is read by process $\mathbf{P_3}$. $\mathbf{P_3}$ subsequently puts the value obtained on $\mathbf{ch2}$ on its service channel $\mathbf{s2}$.
 Similarly, process $\mathbf{P_3}$ reads a value on channel $\mathbf{s2}$ which is received by $\mathbf{P_1}$ via process $\mathbf{P_2}$. $\mathbf{P_1}$ then outputs the received value on its service channel $\mathbf{s1}$.
 
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{5in}
@@ -643,7 +638,7 @@ Similarly, process $\mathbf{P_3}$ reads a value on channel $\mathbf{s2}$ which i
 \end{center}
 \end{table}
 
-\begin{figure}[!h]
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[scale = 2,every node/.style={very thick}]
  \draw (0,0)  node[circle,draw=black,text width = 1.4cm,align=center] (A) 
@@ -716,7 +711,7 @@ Process $\mathbf{P_2}$ hcases on the handle obtained on channel $\mathbf{ch}$ an
 \end{itemize}
 The final output is a terminal that pops up and asks for a integer value. Once the value is entered, another terminal pops up and displays the value entered on the first terminal. The second terminal then asks for a value which is displayed in the first terminal. The popping terminals are the service channels.
 
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|c|} \hline
 \begin{minipage}{3.2in}
@@ -787,7 +782,7 @@ run console => intTerm1,intTerm2 ->
 \end{center}
 \end{table}
 
-\begin{figure}[!h]
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[scale = 2,every node/.style={very thick}]
  \draw (0,0)  node[circle,draw=black,text width = 1.4cm,align=center] (A) 
@@ -840,7 +835,7 @@ In the before diagram, process $\mathbf{P_1}$ is connected to process $\mathbf{P
 In the after diagram, $\mathbf{P_1}$ splits channel $\mathbf{ch}$ into $\mathbf{ch1}$ and $\mathbf{ch2}$. $\mathbf{P_2}$ forks two new processes $\mathbf{P_1}$ and $\mathbf{P_2}$ on the newly generated channels $\mathbf{ch1}$ and $\mathbf{ch2}$. Consider the type of the newly generated channels $\mathbf{ch_1}$ and $\mathbf{ch2}$ as $T_1$ and $T_2$ respectively. The type $T$ of the original channel $\mathbf{ch}$ in this configuration is $T_1 \oplus T_2$ as the output channel $\mathbf{ch}$ is split and input channel $\mathbf{ch}$ is being forked on.
 ~~\\~~\\ 
 Channel $\mathbf{ch}$ has been plugged between processes $\mathbf{P_1}$ and $\mathbf{P_2}$. Process $\mathbf{P_1}$ gets a value on its service channel {\bf intTerm1}, splits its output channel $\mathbf{ch}$ into two channels $\mathbf{ch1}$ and $\mathbf{ch2}$, and puts the obtained value from the service channel on $\mathbf{ch1}$ and $\mathbf{ch2}$. Process $\mathbf{P_2}$ forks two new processes $\mathbf{P_{21}}$ and $\mathbf{P_{22}}$ on the channels $\mathbf{ch1}$ and $\mathbf{ch2}$ respectively. $\mathbf{P_{21}}$ then gets the value that was put on $\mathbf{ch_1}$, squares it and puts the square on its service channel $\mathbf{intTerm2}$. Similarly, $\mathbf{P_{22}}$ gets the value that was put on $\mathbf{ch_2}$, cubes it and puts the cube on its service channel $\mathbf{intTerm3}$
-\begin{table}[h!]
+\begin{table}
 \begin{center}
 \begin{tabular}{|l|l|} \hline
 \begin{minipage}{2.8in}
@@ -938,7 +933,7 @@ run console => intTerm1,intTerm2,intTerm3 ->
 \end{table}
 
 
-\begin{figure}[!h]
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[scale = .8,every node/.style={very thick}]
  \draw (6,0)  node[circle,draw=black,minimum size=0.4cm,align=center] (FP1)

@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 
-\title{Lambda Lifting Transformation}
+\title{Sequential MPL}
 \usepackage[utf8]{inputenc}
 \usepackage{tikz}
 \usepackage{tikz-3dplot}
@@ -88,21 +88,21 @@ The inductive defintion of natural numbers can be used to define the MPL data ty
           data Nat -> C = Zero  ::   -> C 
                           Succ  :: C -> C
 \end{alltt}
-$\mathbf{Nat}$ data type is made up of two constructors, $\mathbf{Zero}$ and $\mathbf{Succ}$ meaning that all natural numbers can be expressed in terms of these data types. Constructor $\mathbf{Zero}$ doesn't take any input and its output type is $\mathbf{Nat}$. Constructor $\mathbf{Succ}$ takes a natural number of type $\mathbf{Nat}$ as input and returns the next natural number of type $\mathbf{Nat}$ as the output. The $\mathbf{Succ}$ constructor is recursive.
+$\mathbf{Nat}$ data type is made up of two constructors, $\mathbf{Zero}$ and $\mathbf{Succ}$ meaning that all natural numbers can be expressed in terms of these constructors. Constructor $\mathbf{Zero}$ doesn't take any input and its output type is $\mathbf{Nat}$. Constructor $\mathbf{Succ}$ takes a natural number of type $\mathbf{Nat}$ as input and returns the next natural number of type $\mathbf{Nat}$ as the output. The $\mathbf{Succ}$ constructor is recursive.
 \subsubsection {List Data Type}
 The $\mathbf{List}$ data type can be defined as below:
 \begin{alltt}
           data List(A) -> C = Nil   ::     -> C 
                               Cons  :: A,C -> C
 \end{alltt}
-$\mathbf{List}$ data type is polymorphic in type variable $\mathbf{A}$ meaning that this data type can be used to store elements of any type $\mathbf{A}$ in a list. List is made up of two constructors, $\mathbf{Nil}$ and $\mathbf{Cons}$. $\mathbf{Nil}$ constructor represents an empty list. $\mathbf{Nil}$ doesn't take any input and its output type is $\mathbf{List(A)}$. $\mathbf{Cons}$ constructor takes two inputs, an element of type $\mathbf{A}$ and a list of type $\mathbf{List(A)}$ and puts the element at the front of the list. The output of the $\mathbf{Cons}$ constructor is $\mathbf{List(A)}$. $\mathbf{Cons}$ constructor is recursive.
+$\mathbf{List}$ data type is polymorphic in type variable $\mathbf{A}$ meaning that this data type can be used to store elements of any type $\mathbf{A}$ in a list. List is made up of two constructors, $\mathbf{Nil}$ and $\mathbf{Cons}$. $\mathbf{Nil}$ constructor represents an empty list. $\mathbf{Nil}$ doesn't take any input and its output type is $\mathbf{List(A)}$. $\mathbf{Cons}$ constructor takes two inputs, an element of type $\mathbf{A}$ and a list of type $\mathbf{List(A)}$ and puts the element at the front of the list. The output of the $\mathbf{Cons}$ constructor is $\mathbf{List(A)}$. $\mathbf{Cons}$ constructor is recursive. Since $\mathbf{List}$ data type is very commonly used in MPL, a convenient syntax is provided for its two constructors: $\mathbf {[~]}$ for the $\mathbf{Nil}$ constructor and $\mathbf {:}$ for the $\mathbf{Cons}$ constructor.
 \subsubsection {Either Data Type}
 $\mathbf{Either}$ data type is defined as below:
 \begin{alltt}
           data Either(A,B) -> C = Left   :: A -> C 
                                   Right  :: B -> C
 \end{alltt}
-$\mathbf{Either}$ data type has two constructors $\mathbf{Left}$ and $\mathbf{Right}$. This data type can be used as the output type of a function that returns two different types as output, say $\mathbf{A}$ and $\mathbf{B}$. When the function returns the value of type $\mathbf{A}$, $\mathbf{Left}$ constructor is used and when the function returns the value of type $\mathbf{B}$, $\mathbf{Right}$ constructor is used. This data type is usually used to handle the output of a function that can fail for some inputs. Function returns an error message with the $\mathbf{Left}$ constructor and the normal output with the $\mathbf{Right}$ constructor.
+$\mathbf{Either}$ data type has two constructors $\mathbf{Left}$ and $\mathbf{Right}$. This data type can be used as the output type of a function that can return two different types as output, say $\mathbf{A}$ and $\mathbf{B}$. When the function returns the value of type $\mathbf{A}$, $\mathbf{Left}$ constructor is used and when the function returns the value of type $\mathbf{B}$, $\mathbf{Right}$ constructor is used. This data type is usually used as the output of a function that can fail for some inputs. Function returns an error message with the $\mathbf{Left}$ constructor and the normal output with the $\mathbf{Right}$ constructor.
 
 \subsection {Constructs for Data Types}\label{SeqMPL:dataConstruct}
 There are some sequential MPL constructs that work with data types. They are {\sf case}, {\sf constructor} and {\sf fold} constructs. They are described in this section.
@@ -133,13 +133,13 @@ $\mathbf{Nil}$ or $\mathbf{[~]}$ represents an empty list, $\mathbf{Cons(1,Nil)}
       &\mathbf{\qquad\qquad \vdots} \\
       &\mathbf{C_n~~us_n~~\to t_n}\\
 \end{align*}
-First argument of the {\sf case} construct is a sequential term represented in the syntax by $\mathbf {t}$. The sequential term $\mathbf {sterm}$ evaluates to a data type, say $\mathbf {D}$ in this case.
+First argument of the {\sf case} construct is a sequential term represented in the syntax by $\mathbf {t}$. The sequential term $\mathbf {t}$ evaluates to a data type. Assume that the data type being worked with here is $\mathbf{D}$.
 ~~\\~~\\
-{\sf case} branches on the constructors of a data type (in this case, data type $\mathbf {D}$) and selects a particular branch based on what the first argument $\mathbf {t}$ evaluates to. In the {\sf case} syntax $\mathbf{C_1,\ldots,C_n}$ are the constructors of the data type $\mathbf {D}$. $\mathbf {us_i}$ is the list of arguments (which are sequential terms) that the constructor $\mathbf {C_i}$ takes. Once a particular branch say $\mathbf {C_k}$ is selected, the term corresponding to the constructor, in this case $\mathbf {t_k}$ is executed.
+{\sf case} branches on the constructors of a data type (in this case, data type $\mathbf {D}$) and selects a particular branch based on what the first argument $\mathbf {t}$ evaluates to. In the {\sf case} syntax $\mathbf{C_1,\ldots,C_n}$ are the constructors of the data type $\mathbf {D}$. $\mathbf {us_i}$ is the list of arguments (which are sequential terms) that the constructor $\mathbf {C_i}$ takes. Once a particular branch say $\mathbf {C_k}$ is selected, the term corresponding to that constructor, in this case $\mathbf {t_k}$ is executed.
 ~~\\~~\\
 Two examples that use {\sf case} construct on data types, namely $\mathbf {Nat}$ and $\mathbf {List}$ data type, are discussed below.
 ~~\\~~\\ 
-Figure \ref{seqMPL:caseExampleFirst} shows an example of a function $\mathbf{convNatToInt}$ where $\mathbf{Nat}$ data type is cased on. The function $\mathbf{convNatToInt}$ takes the $\mathbf{Nat}$ representation as input and returns the corresponding integer representation. $\mathbf{convNatToInt}$ is a recursive function that returns the integer 0 for the  $\mathbf{Zero}$ constructor. For the $\mathbf{Succ(n)}$ branch, the function adds 1 for the  $\mathbf{Succ}$ constructor and calls itself recursively on argument $\mathbf{n}$. The function is essentially counting the numbers of the $\mathbf{Succ}$ constructor in a $\mathbf{Nat}$ representation.
+Figure \ref{seqMPL:caseExampleFirst} shows an example of a function $\mathbf{convNatToInt}$ where $\mathbf{Nat}$ data type is cased on. The function $\mathbf{convNatToInt}$ takes the $\mathbf{Nat}$ representation as input and returns the corresponding integer representation. $\mathbf{convNatToInt}$ is a recursive function that returns the integer 0 for the  $\mathbf{Zero}$ constructor. For the $\mathbf{Succ(n)}$ branch, the function adds 1 for the  $\mathbf{Succ}$ constructor and calls itself on argument $\mathbf{n}$. The function is essentially counting the numbers of the $\mathbf{Succ}$ constructor in a $\mathbf{Nat}$ representation.
 ~~\\~~\\
 Figure \ref {seqMPL:caseExampleSecond} shows an example of a function that takes two lists as inputs and gives as output the appended list. The function cases on the first list. Note that instead of listing $\mathbf{Nil}$ and $\mathbf{Cons}$ in the two branches, the convenient syntax, $\mathbf{[~]}$ for $\mathbf{Nil}$ and $\mathbf{:}$ for $\mathbf{Cons}$, is used. Corresponding to the $\mathbf{Nil}$ branch, the second list is returned. In the $\mathbf{Cons}$ branch containing two arguments, the first argument of the $\mathbf{Cons}$ is added to the beginning of the list obtained as a result of appending the second argument of the $\mathbf{Cons}$ to the second list.
 \begin{figure}[!h]
@@ -210,7 +210,7 @@ In the program in Figure \ref {seqMPL:foldExampleSnd}, corresponding to the  $\m
                 -- convert Nat representation to Integer
                 convNatToInt:: Nat -> Int =
                   nat -> fold nat of
-                           Zero     -> 0
+                           Zero :   -> 0
                            Succ : n -> 1 + n 
 \end{alltt} 
 \caption{folding over Nat data type}
@@ -253,7 +253,7 @@ Noticeable things about the codata type defintion are below:
   \begin{align*}
     \tilde{P_i}~\subseteq~(A_1,\ldots,A_n)
   \end{align*}
-  \item The union of all the ${P_i}$ should result in set $\{A_1,\ldots,A_n\}$.   
+  \item The union of all the ${P_i}$ for $\leq i \leq n$ should result in set $\{A_1,\ldots,A_n\}$.   
   \begin{align*}
     \bigcup\limits_{i=1}^{n}~\tilde{P_i}~=~\{A_1,\ldots,A_n\}
   \end{align*}
@@ -266,7 +266,7 @@ $\mathbf{InfList}$ codata type is defined as:
           codata C -> InfList(A) = Head :: C -> A  
                                    Tail :: C -> C  
 \end{alltt}
-As the name suggests $\mathbf{InfList(A)}$ data type can be used to store infinite list of things of type $\mathbf{A}$. $\mathbf{InfList(A)}$ has two destructors, $\mathbf{Head}$ and $\mathbf{Tail}$. $\mathbf{Head}$ destructor is a function that takes an infinite list of elements of type $\mathbf{A}$ and returns the first element of the infinite list. $\mathbf{Tail}$ destructor is a function that takes an infinite list of elements of type $\mathbf{A}$, removes the first element and returns remainder of the list.
+As the name suggests $\mathbf{InfList(A)}$ codata type can be used to store infinite list of things of type $\mathbf{A}$. $\mathbf{InfList(A)}$ has two destructors, $\mathbf{Head}$ and $\mathbf{Tail}$. $\mathbf{Head}$ destructor is a function that takes an infinite list of elements of type $\mathbf{A}$ and returns the first element of the infinite list. $\mathbf{Tail}$ destructor is a function that takes an infinite list of elements of type $\mathbf{A}$, removes the first element and returns remainder of the list.
 \subsubsection{Lazy Triple}
 Triple can be defined in MPL using codata types as:
 \begin{alltt}
@@ -277,13 +277,13 @@ Triple can be defined in MPL using codata types as:
 \end{alltt}
 Triple has three destructors, $\mathbf{Proj0, Proj1, Proj2}$. These destructors can then be used to get the first, second or the third element from the triple.
 ~~\\~~\\ 
-Since tuples/products are useful programming constructs to have in a language, MPL allows the programmers to use a $\mathbf{n}$-tuple without defining the codata type for it. $\mathbf{\#i}$ can used to project the \texttt{$\mathbf{i^{th}}$} element (for $\mathbf{1~\leq~n}$) from the $\mathbf{n}$-tuple.
+Since tuples/products are useful programming constructs to have in a language, MPL allows the programmers to use a $\mathbf{n}$-tuple without defining the codata type for it. $\mathbf{\#i}$ can used to project the \texttt{$\mathbf{i^{th}}$} element (for $\leq i \leq n$) from the $\mathbf{n}$-tuple.
 \subsection {record and destructor Constructs}
 A {\sf record} is used to hold value of a codata type. The {\sf record} construct has the form:
   \begin{align*}
     \mathbf{(:~D_1~us_1~:=~t_1,\ldots,D_n~us_n~:=~t_n~:)}
   \end{align*}
-Here, $\mathbf(:~:)$ is the special synatx for records. $\mathbf{D_i}$ is the $\mathbf{i^{th}}$ destructor of the codata type, the record of which is being formed and $\mathbf{us_i}$ is the sequence of arguments corresponding to the destructor.
+Here, $\mathbf(:~:)$ is the special synatx for records. $\mathbf{D_i}$ is the $\mathbf{i^{th}}$ destructor of the codata type, the record of which is being formed and $\mathbf{us_i}$ is the sequence of arguments corresponding to that destructor.
 ~~\\~~\\
 The following record creates an record of $\mathbf{Triple}$ codata type:
 \begin{alltt}
@@ -337,13 +337,13 @@ In Figure \ref{seqMPL:unfoldExample}, {\sf unfold} construct is used to generate
 \end{figure}
 
 \section {Non Data/Codata Constructs}\label{SeqMPL:IndCons}
-These are the MPL constructs that are not used with either the data types or the codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant} and {\sf if-then-else} constructs.
+These are the MPL constructs that are not used with either the data types or the codata types. They are {\sf function call}, {\sf where}, {\sf variable}, {\sf constant}, {\sf if-then-else} and {\sf switch} constructs.
 \subsection {function call construct}
 MPL allows the programmer to define their own functions. It also has inbuilt functions such as addition, subtraction, multiplication, divison, equality testing etc. Both the classes of functions can be called in MPL functions or processes. Syntax of a function call is:
 \begin{align*} 
 &\mathbf{fname~~(arg_1,\ldots,arg_n)}
 \end{align*}
-where $\mathbf{fname}$ is the function (defined/builtin) being called with $\mathbf{n}$ arguments $\mathbf{arg_1,\ldots,arg_n}$. The arguments
+where $\mathbf{fname}$ is the function (defined/builtin) being called with $\mathbf{n}$ arguments $\mathbf{arg_1,\ldots,arg_n}$.
 ~~\\~~\\
 The function should be called with the right number of parameters otherwise a semantic error is raised. 
 \subsection {if-then-else construct}
@@ -360,7 +360,7 @@ Constants which can be integers, floats, characters, or strings can be used in t
 {\sf where} is a sequential MPL construct used to define:
 \begin{itemize}
 \item local functions that are needed only inside the body of a given function, and
-\item local variables that can be used in the body of the function.
+\item local variables that can be used in the body of that function.
 \end{itemize}
 Figure \ref {seqMPL:whereExam} shows an example of an MPL function that uses 
 the {\sf where} construct. 
@@ -431,13 +431,13 @@ generalizes to the patterned abstraction
   &\qquad \qquad\vdots \\
   &p_{m,1},\ldots,p_{m,n}~~\to t_m\\
 \end{align*}
-which is a list of pattern-term phrase. A pattern-term phrase consists of a list of patterns and a sequential term corresponding to it. When using pattern matching, term $\mathbf{t_i}$ is executed only if $\mathbf{p_{i,1},\ldots,p_{i,n}}$ is the first pattern list which matches the input.
+which is a list of pattern phrase. A pattern phrase consists of a  pattern matching line, that is a list of patterns and the corresponding sequential term. When using pattern matching, term $\mathbf{t_i}$ is executed only if $\mathbf{p_{i,1},\ldots,p_{i,n}}$ is the first pattern list which matches the input.
 ~~\\~~\\
-Variables, constructors, records and products can be used as patterns giving variable patterns, constructor patterns, record patterns and product patterns respectively. Sometimes, elements of a pattern aren't used in the corresponding term of the pattern-term phrase. A special kind of pattern called the don't care pattern represented by an underscore (\texttt{``\_''}) is used in such a case.  
+Variables, constructors, records and products can be used as patterns giving variable patterns, constructor patterns, record patterns and product patterns respectively. Sometimes, elements of a pattern aren't used in the corresponding term of the pattern phrase. A special kind of pattern called the don't care pattern represented by an underscore (\texttt{``\_''}) is used in such a case.  
 ~~\\~~\\
 Pattern matching is compiled to {\sf case} statements. The compilation of pattern matching to case has been described in Chapter.
 ~~\\~~\\ 
-Figure {seqMPL:pattMatchExample} gives a few examples of the use of pattern matching in MPL functions. Function $\mathbf{isZero}$ takes an input of type $\mathbf{Nat}$ and returns $\mathbf{True}$ if the input is $\mathbf{Zero}$ and $\mathbf{False}$ otherwise. $\mathbf{isZero}$ uses a constructor pattern in the first pattern-term phrase and a don't care pattern in the second pattern-term phrase.
+Figure \ref {seqMPL:pattMatchExample} gives a few examples of the use of pattern matching in MPL functions. Function $\mathbf{isZero}$ takes an input of type $\mathbf{Nat}$ and returns $\mathbf{True}$ if the input is $\mathbf{Zero}$ and $\mathbf{False}$ otherwise. $\mathbf{isZero}$ uses a constructor pattern in the first pattern phrase and a don't care pattern in the second pattern phrase.
 ~~\\~~\\ 
 $\mathbf{or}$ function in Figure \ref{seqMPL:pattMatchExample} takes a pair of booleans and returns $\mathbf{True}$ if either of the elements of the pair is $\mathbf{True}$ and $\mathbf{False}$ otherwise. $\mathbf{or}$ function definition uses different kinds of patterns for pattern matching: product patterns, constructor patterns and don't care patterns. An interesting things to note here is that constructor and don't care patterns have been used inside of a product pattern. A pattern that contains other patterns is called a nested pattern. 
 ~~\\~~\\ 

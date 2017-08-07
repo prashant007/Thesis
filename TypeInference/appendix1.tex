@@ -1,0 +1,182 @@
+\fancyhead[RO,LE]{\thepage}
+\fancyfoot{} 
+\chapter{Appendix}
+
+This thesis uses category theory extensively.  For references on category see \cite{CatsOG}.  We will recall some basic category theory to prepare the reader for the thesis.  This appendix is not meant to be a reference on category theory, rather it is here so that this thesis is self contained.  For a reference on category theory, there is the classic \cite{CatsOG}; for a more elementary development there is \cite{CatsAwodey}.
+
+\section{Categories, Functors, Natural Transformations}
+
+\begin{defn}
+ A {\bf category} $\X$ consists of the following data:
+\end{defn}
+\begin{description}
+ \item[Objects: ] $A,B,C \ldots$
+ \item[Arrows: ] $A \to^{f} B,B \to^{g} C, \ldots$
+\end{description}
+where for each object, $A$, there exists an identity arrow $1_A : A \to A$, and for each arrow $A \to^{f} B$ there are two operations $dom,cod$ such that $dom(f)=A;cod(f)=B$.  The collection of maps between two objects, $A,B$ is denoted $\X(A,B)$ and there is a total binary operation
+$$ \X(A,B) \x \X(B,C) \to^{;} \X(A,C)$$
+called {\bf composition}.  
+
+
+This data is subject to two laws:
+
+
+The maps in a category must satisfy the identity law: for every object $A$: for each map $f$ with $dom(f)=A$, $1_A ; f = f$ and for each map $g$ with $cod(g)=A$, $g;1_A = g$.  The maps in a category must also satisfy the associative law: that for all composable $f,g,h$, $f;(g;h) = (f;g);h$.\\
+
+
+Typically we will omit the ``$;$'' when writing composition, favoring instead juxtaposition.  It should be pointed out that the way composition is written in this thesis is called \emph{diagrammatic} order of composition.  This is common in category theory, but is less common in other branches of mathematics.  Sometimes, $fg$ will be written without explicit typing, but it is always assumed that $cod(f) = dom(g)$.  We may also, for ease of reading, occasionally drop the subscript of the identity map, writing just $1$ instead of $1_A$.  When $\X(A,B)$ is a set, it is called a {\bf homset}.  We will write $\text{Obj}(\X)$ to denote the collection of objects of the category $\X$ and $\text{Arr}(\X)$ to denote the collection of arrows of a category $\X$.
+
+
+\begin{defn}
+ Let $\X,\Y$ be categories.  A {\bf functor} $F : \X \to \Y$ consists of two maps $F_0 : \text{Obj}(\X) \to \text{Obj}(\Y)$ and $F_1 : \text{Arr}(\X) \to \text{Arr}(\Y)$ such that if $A \to^{f} B$ then $F_0(A) \to^{F_1(f)} F_0(B)$.  Further, $F_1(1_A) = 1_{F_0(A)}$ and $F_1(fg) = F_1(f)F_1(g)$.
+\end{defn}
+
+We will often write only $F$ to denote both $F_0$ and $F_1$.
+
+
+\begin{defn}
+ Let $\X,\Y$ be categories and $\X \to^{F,G} \Y$ be functors.  A natural transformation $\phi : F \implies G$ is an assignment of, for each object $A \in \X$, an arrow $\phi_A : F(A) \to G(A)$ in $\Y$ such that the following diagram commutes for all $A,B \in \text{Obj}(\X)$ and $A \to^{f} B \in \text{Arr}(\X)$
+$$\xymatrix{
+F(A) \ar[d]_{F(f)} \ar[r]^{\phi_A} & G(A) \ar[d]^{G(f)}\\
+F(B) \ar[r]_{\phi_B} & G(B)
+}$$
+\end{defn}
+
+
+
+
+\section{Monads and Comonads}\label{ComonadSection}
+
+A {\bf comonad} on a category $\X$ is a triple $\mathcal{S} = (S,\epsilon,\delta)$ where $S : \X \to \X$ is a functor, and $\epsilon : S \Rightarrow 1$ and $\delta : S \Rightarrow  S^2$ are natural transformations such that for each object $X$ in $\X$ the following diagrams commute.
+$$\xymatrix{
+     & S(X) \ar@{=}[dr] \ar@{=}[dl] \ar[d]|{\delta_X}          &      && S(X) \ar[r]^{\delta_X} \ar[d]_{\delta_X} & S^2(X) \ar[d]^{S(\delta_X)}&\\
+S(X) & S^2(X) \ar[l]^{\epsilon_{S(X)}}  \ar[r]_{S(\epsilon_X)} & S(X) && S^2(X) \ar[r]_{\delta_{S(X)}}            & S^3(X)                     &
+}$$
+A {\bf monad} is the dual of comonad.  This means that the definition of monad can be obtained from the definition of comonad by reversing the direction of all the arrows involved in the definition comonad.
+
+\begin{prop}\label{CoKliesliComonad}
+ $\mathcal{S}$ is a comonad on $\X$ if and only there is an object map $S : \X_0 \to X_0$, a family of maps $\epsilon_X : S(X) \to X$ for each object $X$, and  a lifting combinator
+$$\infer{S(X) \to^{(f)^{\sharp}} S(Y)}{S(X) \to^{f} Y}$$
+such that
+$(f)^\sharp \epsilon_Y = f, (\epsilon_X)^\sharp = 1_{S(X)},$ and $((f)^\sharp g)^\sharp = (f)^\sharp (g)^\sharp$.
+\end{prop}
+Since we use this presentation in chapter \ref{CoKleisli}, we will recall the proof.
+\begin{proof}
+ Suppose $\mathcal{S} = (S,\epsilon,\delta)$.  Then take $S$ to be the required object map, $\epsilon$ to be the $\epsilon$ required in the proposition, and if $S(X) \to^{f} Y$, then $(f)^\sharp := \delta_X S(f) : S(X) \to S(Y)$.  The identities must be checked.  The first follows from the naturality of $\epsilon$ and the counit laws.
+$$(f)^\sharp \epsilon_Y = \delta_X S(f) \epsilon_Y = \delta_X \epsilon_X f = f$$
+The second law is a counit law $(\epsilon_X)^\sharp = \delta_X S(\epsilon_X) = 1$.  The last law uses that $S$ is a functor (for preservation of composition and for $S(X)=Y$), the coassociativity condition, and that $\delta$ is natural.
+$$(f^\sharp g)^\sharp = \delta S(f^\sharp)S(g) = \delta S(\delta) S^2(f) S(g) = \delta_X \delta_{S(X)} S^2(f)g = \delta_X S(f) \delta_Y S(g) = f^\sharp g^\sharp.$$
+
+
+
+Conversely, given the above data, if $f : X \to Y$ then define $S(f) := (\epsilon_X f)^\sharp$.   Next, $S$ will be proved to be a functor.  First,
+$S(1_X) = (\epsilon_X 1)^\sharp = (\epsilon_X)^\sharp = 1.$  Next, since $\epsilon_X f : S(X) \to Y$, then by the first identity, $\epsilon_X f = (\epsilon_X f)^\sharp \epsilon_Y$.  This allows, with the third identity, the following calculation,
+$$S(fg) = (\epsilon_X f g)^\sharp = ((\epsilon_X f)^\sharp \epsilon_Y g) = (\epsilon_X f)^\sharp (\epsilon_Y g)^\sharp = S(f)S(g).$$
+Thus, $S$ is a functor.  That $\epsilon$ is natural follows from the first identity,
+$$S(f)\epsilon_Y = (\epsilon_X f)^\sharp \epsilon_Y = \epsilon_X f.$$
+Define the comultiplication, $\delta_X := (1_{S(X)})^\sharp$, and to see that this is natural:
+\begin{align*}
+ \delta_X S^2(f) &= (1_{S(X)})^\sharp (\epsilon_{S(X)} (\epsilon_X f)^\sharp) = ((1_{S(X)})^\sharp \epsilon_{S(X)} (\epsilon_X f)^\sharp)^\sharp\\
+                 &= ((\epsilon_X f)^\sharp)^\sharp = (\epsilon_X f)^\sharp (1_Y)^\sharp = S(f) \delta_Y.
+\end{align*}
+Finally the comonad laws must be checked.
+For the counit laws:
+$$\delta_X \epsilon_{S(X)} = (1_{S(X)})^\sharp \epsilon_{S(X)} = 1_{S(X)};$$
+$$\delta_X S(\epsilon_X) = (1_{S(X)})^\sharp(\epsilon_{S(X)}\epsilon_X)^\sharp = ((1_{S(X)})^\sharp \epsilon_{S(X)} \epsilon_X)^\sharp = (\epsilon_X)^\sharp = 1_{S(X)}$$
+as required.  
+
+
+Finally, for coassociativity,
+\begin{align*}
+ &  \delta_X S(\delta_X) = (1_{S(X)})^\sharp(\epsilon_{S(X)} (1_{S(X)})^\sharp)^\sharp = ((1_{S(X)})^\sharp \epsilon_{S(X)} (1_{S(X)})^\sharp)^\sharp &\\
+ &= ((1_{S(X)})^\sharp)^\sharp = ((1_{S(X)})^\sharp 1_{S^2(X)})^\sharp = (1_{S(X)})^\sharp(1_{S^2(X)})^\sharp &\\
+ &= \delta_X \delta_{S(X)} &
+\end{align*}
+as required.  This completes the proof that $(S,\epsilon,\delta)$ is a comonad.
+\end{proof}
+
+
+Let $\X$ be a category and $\mathcal{S} = (S,\epsilon,\delta)$ be  a comonad on $\X$.  Consider the following structure, $\X_\mathcal{S}$, called the {\bf coKleisli category},
+\begin{description}
+ \item[Obj: ] Those of $\X$
+ \item[Arr: ] 
+$$\infer{A \to B \qquad \X_\mathcal{S}}{S(A) \to B \qquad \X}$$
+\item[Id: ] 
+$$\infer{A \to^{1} A \qquad \X_\mathcal{S}}{S(A) \to^{\epsilon} A \qquad \X}$$
+\item[Comp: ]
+
+
+$$\infer{A \to^{fg} C \qquad \X_\mathcal{S}}{\infer{S(A) \to^{\delta_A} S^2(A) \to^{S(f)} S(B) \to^{g} C \qquad \X}{\infer{S(A) \to^{f} B \qquad \X}{A \to^{f} B \qquad \X_\mathcal{S}} & \infer{S(B) \to^{g} C \qquad \X}{B \to^{g} C \qquad \X_\mathcal{S}} }}$$
+\end{description}
+
+It is a standard exercise to show this is a category.
+
+\section{Coslice category}
+For any category $\X$, and every object $A$, the {\bf coslice category}, $A/\X$, is the category whose objects are maps $A \to^{b} B$ in $\X$, and whose maps are commuting triangles,
+$$\xymatrix{
+& A \ar[dl]_{b} \ar[dr]^{c}&\\
+B \ar[rr]_{f} && C
+}$$
+in $\X$.
+
+In chapter \ref{chaprat}, the following theorem, which shows that a monad on $\X$ lifts to a monad on $A/\X$, is used implicitly.
+
+\begin{prop}
+ If $\mathcal{T} = (T,\eta,\mu)$ is a monad on $\X$, then there is a monad $\mathcal{T}^A = (T^A,\eta^A,\mu^A)$ on $A/\X$ for each object $A$ in $\X$.
+\end{prop}
+\begin{proof}
+ $T^A(A \to^b B) = A \to^b B \to^{\eta_B} T(B)$ on objects, and on arrows, we have
+$$
+\xymatrix{
+& A \ar[dl]_{b} \ar[dr]^{c}&\\
+B \ar[rr]_{g} && C
+}
+\mapsto 
+\xymatrix{
+& A \ar[dl]_{b \eta} \ar[dr]^{c\eta}&\\
+T(B) \ar[rr]_{T(g)} && T(C)
+}$$
+The unit of the monad $\eta^A : b \to T^A(b)$ is
+$$
+\xymatrix{
+& A \ar[dl]_{b} \ar[dr]^{b\eta}&\\
+B \ar[rr]_{\eta}&& T(B)
+}$$
+and the multiplication of the monad $\mu^A : T^A(T^A(b)) \to T^A(b)$ is
+$$
+\xymatrix{
+& A \ar[dl]_{b\eta\eta} \ar[dr]^{b\eta}&\\
+T^2(B) \ar[rr]_{\mu} && T(B)
+}$$
+It is straightforward to check that $\mathcal{T}^A$ is a monad.
+\end{proof}
+
+\section{Monoids}
+We use the notion of commutative monoid in a category in the characterization of theorem (\ref{structhmcla}) for Cartesian left additive restriction categories.  Algebraically, a {\bf monoid} $M=(U(M),+,0)$ where $U(M)$ is the underlying set of elements, $+ : M \x M \to M$ is an associative binary operation, and $0 \in M$ is the left and right unit for $+$.  A monoid is {\bf commutative} when for all $m_1,m_2 \in U(M)$, $m_1 + m_2 = m_2 + m_1$.
+
+
+A {\bf monoidal category} $\mathcal{C} = (\mathbb{C},\oplus,I)$ such that $\oplus : \mathbb{C} \x \mathbb{C} \to \mathbb{C}$ is (bi)functor with three natural isomorphisms $a_\oplus : (A \oplus B)\oplus C \to A \oplus (B \oplus C)$, $\lambda_L : A \oplus I \to A$, and $\lambda_R : I \oplus A \to A$.  These natural isomorphisms must satisfy the two coherence conditions:
+$$\xymatrix{
+A \oplus B \oplus C \oplus D  \ar[r]^{a_\oplus \oplus 1_D} \ar[d]_{a_\oplus}& A \oplus B \oplus C \oplus D \ar[r]^{a_\oplus} & A \oplus B \oplus C \oplus D \ar[d]^{1_A \x a_\oplus}\\
+A \oplus B \oplus C \oplus D \ar[rr]_{a_\oplus} && A \oplus B \oplus C \oplus D
+}$$
+and
+$$\xymatrix{
+(A \oplus I) \oplus B \ar[dr]_{\lambda_L \oplus 1_B} \ar[rr]^{a_\oplus}&& A \oplus (I \oplus B) \ar[dl]^{1_A \oplus \lambda_R}\\
+& A \oplus B. &
+}$$
+$\mathcal{C}$ is a symmetric monoidal category when there is a natural isomorphism $\gamma : A \oplus B \to B \oplus A$.
+Every Cartesian or Cartesian restriction category is a symmetric monoidal category where $\oplus = \x$, $I=\top$, $a_\oplus = a_\x = \<\pi_0\pi_0,\<\pi_0\pi_1,\pi_1\>\>$, $\lambda_L = \pi_0$, $\lambda_R = \pi_1$, and $\gamma = \<\pi_1,\pi_0\>$.
+
+
+A {\bf monoid} in a monoidal category is an object $M$ with two maps $+ : M \x M \to M$ and $0 : I \to M$ such that 
+$$\xymatrix{
+I \oplus M \ar[dr]_{\lambda_R} \ar[r]^{0 \oplus 1_M} & M \oplus M\ar[d]^{+} & M \oplus I \ar[dl]^{\lambda_L}\ar[l]_{1_M \oplus 0}\\
+ & M &
+}$$
+and
+$$\xymatrix{
+(M \oplus M) \oplus M \ar[r]^{a_\oplus}\ar[d]_{+} & M \oplus (M \oplus M) \ar[r]^{+}& M \oplus M \ar[d]^{+}\\
+M \oplus M \ar[rr]_{+}&& M
+}$$
+commute.  The monoid is {\bf commutative} when $\gamma ; + = +$.

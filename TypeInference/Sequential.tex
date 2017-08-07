@@ -347,7 +347,7 @@ The output and input types are $\alpha$-renamed before using these constructs in
 {\small
 \infer [\rm call]
   {
-    \Gamma \vdash {\sf f ~(x_1,\ldots,x_m)}
+    \Gamma \vdash {\sf f ~(t_1,\ldots,t_m)}
    : T  ~~
        \Bigg\langle 
                 \exists \,
@@ -363,8 +363,8 @@ The output and input types are $\alpha$-renamed before using these constructs in
                 \end{array} 
             \Bigg\rangle 
   }
-  { \Gvdash  x_1 : X_1 ~~\langle E_1 \rangle && \ldots &&
-    \Gvdash  x_n : X_n ~~\langle E_n \rangle 
+  { \Gvdash  t_1 : T_1 ~~\langle E_1 \rangle && \ldots &&
+    \Gvdash  t_n : T_n ~~\langle E_n \rangle 
   }
 }  
 \end{mdframed}
@@ -422,23 +422,50 @@ The output and input types are $\alpha$-renamed before using these constructs in
 ~~\\~~\\
 {\sf case} term branches on the different constructors of a data type. Every branch consists of a constructor and a term as can be seen from the case syntax on page ~ \pageref{caseLab}. The term is executed when the corresponding constructor is selected. 
 \subsubsection {Data Type Declaration}\label{dataDef}
-Let us define a data type D($A_1$, $\ldots$, $A_k$) and $C_1$ $\ldots$ $C_m$ be its data constructors. The data type D ($A_1$, $\ldots$, $A_k$)  is polymorphic in type variables $A_1$, $\ldots$, $A_k$ which means that $A_1$, $\ldots$, $A_k$ are the union of type variables used in the different constructors of the data type.
-For constructor $C_1$ which takes {\bf ``a''} number of input terms, $F_{11}$, $\ldots$, $F_{1a}$ repesent the input types of those terms.
+Consider a data type D($A_1$, $\ldots$, $A_k$) having constructors $C_1$ $\ldots$ $C_m$ defined below: 
 \begin{align*} 
-\forall A_1,~ \ldots,~A_k.~data~ D(A_1,\ldots,A_k)  ~\to~ A =
- & ~~ C_1 : F_{11},~ \ldots, ~ F_{1a} ~~~~~\to ~~~ A \\
- & ~~~~ \vdots \hskip 4em \vdots \hskip 7em \vdots \\ 
- & ~~ C_m : F_{m1},~ \ldots, ~ F_{mn} ~~\to ~~~ A
+~data~ D(A_1,\ldots,A_k)  ~\to~ Z =
+ & ~~ C_1 : T_{11},\ldots, T_{1a} ~~~~~\to ~~~ Z \\
+ & ~~~~ \vdots \hskip 4em \vdots \hskip 4.5em \vdots \\ 
+ & ~~ C_m : T_{m1},\ldots, T_{mn} ~~\to ~~~ Z
 \end{align*}
-The different constructs of the data type definition above are $\alpha$-renamed with fresh variable $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ to avoid any naming conflicts when these constructs are used in type equations. For the same reason, we will use the $\alpha$-renaming technique while type inferring other MPL constructs as well. The renamed constructs have been represented by adding a superscript $\prime$ to the name of their names.
-~~\\ ~~\\ 
-$\Lambda$ is a function that takes as arguments a data construct, the old variables present in that data type construct and the fresh variables to replace the old variables. The output of this function is a data type construct where the old variables in its body have been replaced by the new variables.   
-
+In the data type definition above:
+\begin{itemize}
+  \item The data type D ($A_1$, $\ldots$, $A_k$) is polymorphic in type variables $A_1$, $\ldots$, $A_k$ which means that $A_1$, $\ldots$, $A_k$ are the union of type variables used in the different constructors of the data type.
+  \item Constructor $C_1$ takes {\bf ``a''} number of input terms of types $\mathbf{T_{11},\ldots,T_{1a}}$ respectively.
+  \item $\mathbf{T_{ij}}$ is a type expression such that:
 \begin{align*}
- & ~~ D^\prime(A_1^{\prime},\ldots,A_k^{\prime}) ~ = (\Lambda A_1,\ldots,A_k.~ D(A_1,\ldots,A_k))~A_1^{\prime},\ldots,A_k^{\prime}\\ 
- & ~~ F_{xy}^\prime = (\Lambda A_1,\ldots,A_k.~F_{xy})~A_1^{\prime},\ldots,A_k^{\prime} 
+TypeVar~(F_{ij})~~\subseteq~~ \{Z,A_1,\ldots,A_k\}
+\end{align*}
+\item For a constructor $\mathbf{C_f}$ of data type $\mathbf{D}$ which takes {\bf ``g''} number of inputs:
+\begin{itemize}
+  \item the type of the {\sf fold} is directly given by the type expression corresponding to that constructor in the data definition which is:
+  \begin{align*}
+    T_{f1},\ldots,T_{fg}~\to~Z
+  \end{align*}
+  \item the type of the constructor $\mathbf{C_f}$ is given by:
+  \begin{align*}
+    (F_{f1},\ldots,F_{fg}~\to~Z)~~\Big[D(A_1,\ldots,A_k)/Z\Big]
+  \end{align*}
+  The above representation means that in the type expression $\mathbf{F_{f1},\ldots,F_{fg}~\to~A}$, the type variable $\mathbf{A}$ is substituted with $\mathbf{D(A_1,\ldots,A_k)}$.
+\end{itemize}
+\end{itemize}
+Before proceeding with the type inference of the data type constructs, the data type definition is $\alpha$-renamed with fresh variables $A_1^{\prime}$, $\ldots$, $A_k^{\prime}$ to avoid any naming conflicts when these constructs are used in type equations. For the same reason, the $\alpha$-renaming technique is used with non-data type constructs as well.
+~~\\~~\\ 
+The below representation means that in the type expression $\mathbf{T_1}$, the type variables $\mathbf{Z,A_1,\ldots,A_k}$ have been replaced with fresh variables $\mathbf{Z^\prime,A_1^\prime,\ldots,A_k^\prime}$ respectively.
+\begin{align*}
+T_{ij}~[Z/Z^\prime,A_1/A_1^{\prime},\ldots,A_k^{\prime}]
+\end{align*}
+$\mathbf{\Lambda_d}$ is a function that takes as arguments a data type, the list of old variables present in that data type and a fresh variables list to replace the old variables. The output of this function is a data type where the old variables in its body have been replaced by the new variables.
+\begin{align*}
+& \Lambda_d ::~[Type~~Vars],~Type,~[Type~~Vars]~\to~Type 
+\end{align*}
+The renamed parts of the data definition have been represented by adding superscript prime $(\mathbf{\prime})$ to their names as shown below:
+\begin{align*}
+& D^\prime(A_1^{\prime},\ldots,A_k^{\prime}) ~ = (\Lambda A_1,\ldots,A_k.~ D(A_1,\ldots,A_k))~A_1^{\prime},\ldots,A_k^{\prime}\\
+& F_{xy}^\prime = (\Lambda A_1,\ldots,A_k.~F_{xy})~A_1^{\prime},\ldots,A_k^{\prime} 
  ~~~  \{1 \leq x \leq m,~1 \leq y \leq p ~|~ p \in \{a,b,\ldots,n\} \} 
- \end{align*}
+\end{align*}
 \subsubsection {Type Equations for Case and Constructor Term} 
 The function type of a constructor can be looked up from the symbol table.
 \begin{itemize}
@@ -448,12 +475,19 @@ The function type of a constructor can be looked up from the symbol table.
 \end{itemize}
 ~~\\
 The type of a {\sf case} term is the type of the terms on the right side of the branches. A well typed case term will have same type for all the terms on the right side of the branches. The types of the input arguments for a constructor on the left hand side of a branch is obtained by looking up the function type for that constructor from the symbol table. 
-\newpage
-\begin{mdframed} [style=MyFrame,userdefinedwidth=16.1cm,align=center,
-                  frametitle=Typing rule for constructor and case,frametitlerule=true,
-                  frametitlerulewidth = 1pt
-                 ]
-~~\\~~\\
+
+% ---------------------------------------------------
+% ---------------------- Fold -----------------------
+% ---------------------------------------------------
+\subsection {Fold Term}
+{\sf fold} is used to implement higher order primitive recursive functions which gurantees termination. Like case, fold also has branches corresponding to every constructor of the data type over which one is folding. Every branch has some argument on the left side of the arrow and a term on the right side as can be seen in the fold syntax on page \pageref{foldLab}. 
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+{\bf Typing Rule for constructor,case and fold term}  \\ 
+\hline\\~~\\
+\begin{minipage}{6.5in}
+{
 \infer [\rm cons]
   { 
     \begin {array} [c]{l}  
@@ -476,8 +510,11 @@ The type of a {\sf case} term is the type of the terms on the right side of the 
   } 
   { \Gamma \vdash t_1:T_1 ~~~\langle E_1 \rangle && \ldots && ~~~
     \Gamma \vdash t_j:T_j ~~~\langle E_j \rangle
-  }~~\\~~\\~~\\
-
+  }
+}
+\end {minipage} \\~~\\ \hline \hline \\~~\\
+\begin{minipage}{6.5in}
+{
 \infer [\rm case]{
       \begin {array} [c] {l}
          \Gamma \vdash 
@@ -488,8 +525,7 @@ The type of a {\sf case} term is the type of the terms on the right side of the 
               \vdots & \vdots & \vdots \\
               {C_m~x_{m1},\ldots,x_{mn}} & \to & t_n 
             \end{array}          
-          }:T  \\~~\\ 
-          \hskip 6em \Bigg\langle
+          }:T~~ \Biggl\langle
                 \exists \,
                 \begin
                   {array}[c]{l}
@@ -508,7 +544,7 @@ The type of a {\sf case} term is the type of the terms on the right side of the 
                   T_{m1}= F_{m1}^\prime,\ldots,T_{mn}= F_{mn}^\prime\\
                   E_1,E_2,\ldots,E_m
                 \end{array} 
-            \Bigg\rangle  
+            \Biggr\rangle
       \end {array}    
        }
        {
@@ -520,25 +556,12 @@ The type of a {\sf case} term is the type of the terms on the right side of the 
              \Gamma,x_{11}:T_{11},\ldots,x_{1a}:T_{1a} & \vdash & t_1 : T_1
              & \langle E_1 \rangle 
          \end{array} 
-       }~~\\~~\\     
-\end{mdframed} \label{caseLab}
-
-~~\\~~\\
-
-% ---------------------------------------------------
-% ---------------------- Fold -----------------------
-% ---------------------------------------------------
-\subsection {Fold Term}
-{\sf fold} is used to implement higher order primitive recursive functions which gurantees termination. Like case, fold also has branches corresponding to every constructor of the data type over which one is folding. Every branch has some argument on the left side of the arrow and a term on the right side as can be seen in the fold syntax on page \pageref{foldLab}. 
-~~\\~~\\
-For all the constructors of a data type, their fold functions are  inserted in the symbol table. We will use the data definition for D($A_1$, $\ldots$, $A_k$) and the renamed constructs from the section \ref{dataDef} on page \pageref{dataDef}
-~~\\~~\\
-The type of a {\sf fold} term is the type of the terms on the right side of the branches. In a well typed {\sf fold} term, all the terms on the right side of the branches will have same type. The types of the input arguments for a given constructor on the left hand side of a branch is obtained by looking up the fold function type for that constructor from the symbol table. 
-\begin{mdframed} [style=MyFrameSp,userdefinedwidth=14cm,align=center,
-                  frametitle=Typing rule for fold,frametitlerule=true,
-                  frametitlerulewidth = 1pt
-                 ] 
-~~\\
+       }~~\\~~\\  
+}
+\end {minipage} 
+ \\~~\\ \hline \hline \\~~\\
+\begin{minipage}{6.5in}
+{
 \infer [\rm fold] {
     \begin {array}[c]{l}
          \Gamma \vdash 
@@ -549,8 +572,7 @@ The type of a {\sf fold} term is the type of the terms on the right side of the 
               \vdots & \vdots & \vdots \\
               {C_m~:~x_{m1},\ldots,x_{mn}} & \to & t_n 
             \end{array}          
-          }:T  \\~~\\  
-            \hskip 8em \Bigg\langle
+          }:T~~ \Bigg\langle
                 \exists \,
                 \begin
                   {array}[c]{l}
@@ -585,9 +607,20 @@ The type of a {\sf fold} term is the type of the terms on the right side of the 
                  & \langle E_1 \rangle 
              \end {array}
        }
-\end{mdframed}\label{foldLab}
+}
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rules : constructor, case and fold terms}
+\label{STypeInf:DataTermsRules}
+\end{center}
+\end{table}
 
 ~~\\~~\\
+For all the constructors of a data type, their fold functions are  inserted in the symbol table. We will use the data definition for D($A_1$, $\ldots$, $A_k$) and the renamed constructs from the section \ref{dataDef} on page \pageref{dataDef}
+~~\\~~\\
+The type of a {\sf fold} term is the type of the terms on the right side of the branches. In a well typed {\sf fold} term, all the terms on the right side of the branches will have same type. The types of the input arguments for a given constructor on the left hand side of a branch is obtained by looking up the fold function type for that constructor from the symbol table. 
 % ---------------------------------------------------
 % -----------------------Record----------------------
 % ---------------------------------------------------
@@ -619,11 +652,14 @@ The function type of a destructor can be looked up from the symbol table. Follow
   \item if a destructor takes n arguments, then the corresponding function type of the destructor will have (n+1) input types. The first n types out of the (n+1) types are the types of the corresponding arguments. The $(n+1)^{th}$ type is the codata type of the destructor.
   \item The output type of the destructor is the output type of the function for that destructor looked up from the symbol table.    
 \end{itemize}
-\begin{mdframed} [style=MyFrameSp,userdefinedwidth=15cm,align=right,
-                  frametitle=Typing rules for record and destructor,frametitlerule=true,
-                  frametitlerulewidth = 1pt
-                 ]
-~~\\  
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+{\bf Typing Rules for destructor, record, product and unfold term}  \\ 
+\hline\\~~\\
+\begin{minipage}{6.5in}
+{
 \infer [\rm rec] {
     \begin {array}[c]{l}      
          \Gamma \vdash 
@@ -634,8 +670,7 @@ The function type of a destructor can be looked up from the symbol table. Follow
               \vdots & \vdots & \vdots \\
               {D_m~x_{m1},\ldots,x_{mn}} & \to & t_m 
             \end{array}          
-          }:T  \\~~\\ 
-            \hskip 6em \Bigg\langle
+          }:T ~~~\Bigg\langle
                 \exists \,
                 \begin
                   {array}[c]{l}
@@ -665,8 +700,31 @@ The function type of a destructor can be looked up from the symbol table. Follow
          x_{m1}:T_{m1},\ldots,x_{mn}:T_{mn} & \vdash & t_m : T_m
          & \langle E_m \rangle
          \end {array}
-       }~~\\~~\\~~\\
-
+       }
+}  
+\end {minipage} \\~~\\ \hline \hline \\~~\\
+\begin{minipage}{6.5in}
+{
+\infer [\rm prod]
+  {
+    \Gvdash (x_1,\ldots,x_n) : T 
+    ~~~ \bigg\langle \exists ~ T_1,\ldots,T_n~.~  
+                \begin
+                  {array}[c]{l} 
+                       T = (T_1,\ldots,T_n) \\ 
+                       ,E_1,\ldots,E_n
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gvdash x_1 : T_1 ~~ \langle E_1 \rangle &&
+   \ldots && \Gvdash x_n : T_n ~~ \langle E_n \rangle 
+  }
+}
+\end {minipage} 
+ \\~~\\ \hline \hline \\~~\\
+\begin{minipage}{6.5in}
+{
 \infer [\rm dest]
   { 
    \begin {array}[c]{l}
@@ -683,7 +741,7 @@ The function type of a destructor can be looked up from the symbol table. Follow
               }\Bigg):T   
     }\\~~\\
     {
-      \hskip 6em \Bigg\langle
+      \hskip 16em \Bigg\langle
           \exists \,
           \begin
             {array}[c]{l}
@@ -693,7 +751,7 @@ The function type of a destructor can be looked up from the symbol table. Follow
           \begin
             {array}[c]{l} 
             T = T_0,\\ 
-            T_0 = P_{i}^\prime,
+            T_0 = P_{i}^\prime,\\
             T_1 = S_1,\ldots,T_j = S_j\\
             S_1 = F_{i1}^\prime,\ldots,S_j = F_{ij}^\prime,\\
             E_0,E_1,\ldots,E_j
@@ -713,9 +771,17 @@ The function type of a destructor can be looked up from the symbol table. Follow
       \Gamma, x_{i1}:S_1,\ldots,x_{ij}:S_j \vdash t_i:T_0 
       ~~~ \langle E_0 \rangle
     \end {array}
-  }~~\\  
-\end{mdframed}
-~~\\~~\\
+  }~~\\ 
+}
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rules : destructor, record, product and unfold terms}
+\label{STypeInf:CodataTermsRules}
+\end{center}
+\end{table}
+
 
 
 % ---------------------------------------------------
@@ -723,29 +789,7 @@ The function type of a destructor can be looked up from the symbol table. Follow
 % ---------------------------------------------------
 \subsection {Product Term}
 {\sf prod} term is used to represent tuples in MPL. The output type of a tuple is the product of the types of the individual elements.
-~~\\~~\\
-\begin{mdframed} [style=MyFrame,userdefinedwidth=14cm,align=center,
-                  frametitle=Typing rule for prod,frametitlerule=true,
-                  frametitlerulewidth = 1pt
-                 ]
-~~\\~~\\
-\infer [\rm prod]
-  {
-    \Gvdash (x_1,\ldots,x_n) : T 
-    ~~~ \bigg\langle \exists ~ T_1,\ldots,T_n~.~  
-                \begin
-                  {array}[c]{l} 
-                       T = (T_1,\ldots,T_n) \\ 
-                       ,E_1,\ldots,E_n
-                \end {array}       
-        \bigg\rangle 
-  }
-  { 
-   \Gvdash x_1 : T_1 ~~ \langle E_1 \rangle &&
-   \ldots && \Gvdash x_n : T_n ~~ \langle E_n \rangle 
-  }~~\\~~\\
-\end{mdframed}
-~~\\~~\\
+
 % ---------------------------------------------------
 % ---------------------- If stmt---------------------
 % ---------------------------------------------------
