@@ -1,0 +1,679 @@
+\documentclass[11pt]{article}
+
+\title{Compilation of Pattern-Matching}
+
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{proof}
+\usepackage {alltt}
+\usepackage[T1]{fontenc}
+\usepackage{underscore}
+\usepackage{booktabs} % Allows the use of \toprule, \midrule and \bottomrule in tables
+\usepackage{listings}
+\usepackage[export]{adjustbox}
+\usepackage{verbatim}
+\tikzset
+  {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
+
+
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage{ifpdf}
+\usepackage {alltt}
+\renewcommand{\ttdefault}{txtt}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+
+\begin{document}
+
+\maketitle
+\section {Compilation of MPL Programs to Core MPL}
+
+Once an MPL program is processed by the lexer and the parser, an Abstract Syntax Tree (AST) is generated which is a faithful representation of the original program. This AST is used for the type inferenece of the MPL program. If the program type checks, the next step in the compilation of MPL programs is to convert this AST to a simpler core language with a reduced set of language constructs, called Core MPL (CMPL).
+~~\\~~\\ 
+The compilation of the AST to the CMPL happens in 2 steps. These steps are listed below in the order they are performed:
+\begin {itemize}
+  \item {\bf Pattern-Matching Compilation} - This steps translates the pattern-matching syntactic sugar that MPL programs have.  
+  \item {\bf Lambda Lifting} - MPL allows the programmers' to define local functions. However, CMPL doesn't allow for local function defintions. Lambda Lifting transformation gets rid of local function defintions in MPL programs and makes all the local function global.
+  %The {\em pattern-matching compiler algorithm} was first given by Lennart Augustsson. However, the version of the algorithm described in the thesis and used in MPL's implementation is due to Philip Wadler.
+\end{itemize}
+In this chapter, the {\bf pattern-matching compiler algorithm} is discussed. 
+~~\\
+\tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
+                     minimum height=1.8cm,text centered, draw=black]
+\tikzstyle{arrow} = [very thick,->,>=stealth]
+\begin{figure}[h!]
+\begin {center}
+\begin{tikzpicture}[scale = 1.5,every node/.style={very thick},node distance=2cm]
+ \node (LE) [stage] {{\sf \small Lexing}};
+ \node (PA) [stage,right of=LE,xshift=2.2cm] {{\sf \small Parsing}};
+ \node (TC) [stage,right of=PA,xshift=2.2cm,text width = 1.8cm] {{\sf \small Type Inferencing}};
+ \node (CP) [stage,below of=TC,yshift=-2.2cm,text width = 1.8cm,fill=gray!20] 
+            {{\sf \small Compiling Pattern Matching}};
+ \node (LL) [stage,left of=CP,xshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Lambda Lifting}};
+ \node (AM) [stage,left of=LL,xshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Running programs on AMPL}};
+ \draw [arrow] (LE) -- (PA);
+ \draw [arrow] (PA) -- (TC);
+ \draw [arrow] (TC) -- (CP);
+ \draw [arrow] (CP) -- (LL);
+ \draw [arrow] (LL) -- (AM);
+\end{tikzpicture}
+\caption{Compilation Stages : Pattern Matching Compilation}
+\label{fig:Pmatch:Overview}
+\end{center}
+\end{figure}
+
+\section {Pattern Matching in MPL}
+MPL allows the programmer to define readable functions using its the pattern-matching syntax. Figure \ref {fig:Examples} shows a function ${\bf f}$ defined with ${\mathbf {m}}$ lines 
+of $\mathbf{n}$-tuples of patterns and a sequential term. A line ${\mathbf {i}}$ consisting of the pair of patterns ${\mathbf{p_{i,1},\ldots,p_{i,n}}}$ and term $\mathbf{t_i}$ is known as a {\bf pattern phrase}.
+
+\begin{figure}[!h]
+\begin{align*} 
+&fun~~f = \\
+&~~~~ p_{1,1},~\ldots~, ~ p_{1,n} ~\to ~t_1 \\
+&~~~~~~~~~~~ \ldots \\
+&~~~~ p_{m,1},~\ldots~, ~ p_{m,n} ~\to ~t_m \\
+\end{align*} 
+\caption{Function Defintion with Pattern Matching}
+\label{fig:Examples}
+\end{figure}
+
+A pattern $\mathbf{p_{i,j}}$ can be one of the below patterns:
+\begin{itemize}
+  \item Variable Pattern
+  \item Constructor Pattern
+  \item Record Pattern
+  \item Product Pattern
+  \item Don't Care Pattern represented by an unserscore (``_'')
+\end{itemize}
+Don't care patterns can be thought as a special case of variable patterns in which the variables in the patterns of the pattern phrase are not used in the term of the pattern phrase. In the further discussion of pattern matching compilation, the don't care pattern is not explicitly discussed as its compilation scheme is the same as that of variable patterns. 
+~~\\~~\\
+A function can have a mixture of these patterns in any pattern phrase. The constructor, record and product patterns may have other patterns in their body. A pattern that contains another pattern is called a nested pattern.
+~~\\~~\\
+The pattern matching compilation algorithm gets rid of the constructor, product and record patterns (including the nested patterns) in a function body. The final result of pattern matching compilation is a function body that contains only one pattern phrase consisting of just variable patterns.
+~~\\~~\\ 
+Table \ref {Pmatch:Ex1} provides examples of functions defined with patterns. It also shows the pattern matching compiled form of these example functions. 
+~~\\~~\\
+$\mathbf{append}$ function definition in Table \ref {Pmatch:Ex1} appends two lists. It uses a mixture of constructor pattern (first argument) and variable pattern (second argument). 
+~~\\~~\\ 
+$\mathbf{pairFun}$ function takes two input arguments, a pair of list of integers and a pair of integers. Its output is the following:
+\begin{itemize}
+  \item When both the lists of the first argument are empty, the output is the integer pair in the second argument.
+  \item When the first list is non empty and second list is empty, the output is a pair. The first element of this pair is the head of the first list of the first argument of the function. The second element of the pair is the second element of the second parameter of the function.
+  \item The case when the first list is empty and the second list is non empty is symmetric to the last case.
+  \item If both the lists of the first pair are non empty then the two elements of the output pair are the head of the first and the second list respectively.
+\end{itemize}
+Function $\mathbf{fstOfHead}$ takes an infinite list of lists and tries to return the first element of the first list of the infinite list of lists. If the first list of the infinite list of lists is empty, then the function returns a failure with $\mathbf{FF}$ constructor else returns the first element of the first list wrapped in the $\mathbf{SS}$ constructor.
+
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Function defintion with pattern matching} & {\bf Function definition with compiled patterns} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{3in}
+\begin{alltt}
+
+
+fun append :: [A],[A] -> [A] = 
+  [],   ys   -> ys 
+  x:xs, ys   -> x:append (xs,ys) 
+
+
+\end{alltt}
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+
+
+fun append :: [A],[A] -> [A] = 
+  xl,yl -> 
+    case xl of
+      Nil -> yl
+      Cons(x,xs) -> Cons(x,append(xs,yl))
+
+
+\end{alltt} 
+\end {minipage}\\
+\hline 
+\begin{minipage}{2.6in}
+\begin{alltt}
+
+
+fun pairFun::([Int],[Int]),(Int,Int) -> 
+             (Int,Int) = 
+  ([]  ,[]),(p,q)   -> (p,q) 
+  (x:xs,[]),(p,q)   -> (x,q)
+  ([],y:ys),(p,q)   -> (p,y)
+  (x:xs,y:ys),(p,q) -> (x,y)
+
+
+\end{alltt}
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+
+
+fun pairFun::([Int],[Int]),(Int,Int) -> 
+             (Int,Int) =  
+  u,v ->
+    case \ensuremath{\pi_0}(u) of
+      Nil -> 
+        case \ensuremath{\pi_1}(u) of
+          Nil        -> (\ensuremath{\pi_0}(v),\ensuremath{\pi_1}(v))
+          Cons(y,ys) -> (\ensuremath{\pi_0}(v),y)
+      Cons(x,xs) ->    
+        case yls of
+          Nil        -> (x,\ensuremath{\pi_1}(v))
+          Cons(y,ys) -> (x,y)
+
+
+\end{alltt} 
+\end {minipage}\\ 
+\hline 
+\begin{minipage}{2.6in}
+\begin{alltt}
+
+codata C -> InfList(A) 
+          = Head :: C -> A 
+            Tail :: C -> C
+
+data SF(A) -> C = FF ::   -> C 
+                  SS :: A -> C
+
+fun fstOfHead::InfList([A]) -> SF(A) = 
+  (: Head := []  ,Tail := t :) -> FF 
+  (: Head := a:as,Tail := t :) -> SS(a)  
+
+\end{alltt}
+\end {minipage} &
+\begin{minipage}{3.2in}
+\begin{alltt}
+
+codata C -> InfList(A) 
+          = Head :: C -> A 
+            Tail :: C -> C
+
+data SF(A) -> C = FF ::   -> C 
+                  SS :: A -> C 
+
+fun fstOfHead :: InfList([A]) -> SF(A) =
+  u -> case Head(u) of 
+         Nil -> FF
+         Cons(x,xs) -> SF(x) 
+
+
+\end{alltt} 
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Examples of Pattern Matching Compilation}
+\label{Pmatch:Ex1}
+\end{center}
+\end{table}
+
+\section {Overview of Pattern Matching Compiler Algorithm}
+In this section, the algorithm for step wise compilation of patterns in a function body is described. The pattern matching compilation algorithm is described with the help of {\bf compile} function. {\bf compile} function helps in a clean and concise exposition of the algorithm. The basic steps of the algorithm can be summarised as follows:
+\begin{itemize}
+  \item Represent the body of a function definition (which has patterns) with the {\bf compile} function. Section \ref{Pmatch:match} describes the {\bf compile} function in details. 
+
+  \item Define reduction rules for the {\bf compile} function. A reduction rule is a syntactic rule to transform the {\bf compile} function. There are mutiple reduction rules associated with the different configuration of {\bf compile}. However, for any given configuration there is a unique reduction rule. The configurations of the {\bf compile} function and their associated reduction rules have been described in Section \ref {Pmatch:redRule}.
+
+  \item Apply the reduction rules repeatedly till the normal form of the {\bf compile} function is achieved. The normal form of {\bf compile} function is a configuration of {\bf compile} such that it can't be reduced any further. The normal form and the corresponding configuration of the {\bf compile} function has been described in Section {}.
+\end{itemize}
+The normal form of {\bf compile} will produce a new function body where mutiple pattern phrases of variable patterns, constructor patterns, record patterns, product patterns or nested patterns are compiled to a pair of string and a sequential term.
+~~\\~~\\ 
+The pattern matching compiled form of function $\mathbf{f}$ defined in Figure \ref {fig:Examples} looks like:
+\begin{align*} 
+&fun~~f = \\
+&~~~~ u_1,\ldots,u_n ~\to \mathbf{normal~~form}~~(\mathit{compile}~~function~~for~~f's~~body)
+\end{align*} 
+
+\section {compile Function}
+The {\bf compile} function has the form:
+\begin{align*} 
+&compile~~[u_1,u_2,\ldots,u_n] \\
+&\qquad\qquad [~[\\
+&\qquad\qquad ~~(~[~p_{1,1},~\ldots~, ~ p_{1,n}~],~~t_1) \\
+&\qquad\qquad ~~(~[~p_{2,1},~\ldots~, ~ p_{2,n}~],~~t_2) \\
+&\qquad\qquad ~~ \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad\qquad ~~(~[~p_{m,1},~\ldots~, ~ p_{m,n}~],~t_m) \\
+&\qquad\qquad ]~]\\
+&\qquad\qquad default~~term
+\end{align*} 
+The type of the {\bf compile} function is:
+\begin{align*}
+compile~~::~~[Seq.~Term],[[(Pattern,Seq.~Term)]],Seq.~Term~ \to~ ([String],Seq.~Term)
+\end{align*}
+As can be above in the structure and the type of the {\bf compile} function, it takes three inputs and outputs a pair of list of string and a sequential term. The input arguments to {\bf compile} have been described below:
+\begin{itemize}
+  \item First argument is a list of sequential terms. To begin with this list of terms consists of a list of fresh variables equal in number to the number of patterns in a pattern phrase.
+  \item Second argument is a list of list of pattern phrases.
+  \item Third argument is a sequential term. It is the default term to be used with the missing constructors of a data type in pattern-matching. It is also used in the reduction rule {\bf Mixture Rule} described in Section \ref{Pmatch:MixRule}.
+\end{itemize}
+Table \ref {Pmatch:ExampleCompile} gives an example of the 
+{\bf compile} function correponding to the body of {\bf append} function that contains pattern matching. Since the number of patterns in a pattern phrase in the {\bf append} function is two, the first argument of the {\bf compile} function is a list of variable terms containing fresh variables $\mathbf{u1}$ and $\mathbf{u2}$. 
+~~\\~~\\ 
+Second argument of the {\bf compile} function in Table {Pmatch:ExampleCompile} is the pattern phrase. In the representation of the pattern phrase here, constructor $\mathbf{VPatt}$ is used to represent a variable pattern. For example - $\mathbf{VPatt~~ys}$ represents the variable pattern $\mathbf{ys}$. Similarly constructor $\mathbf{CPatt}$ is used to represent a constructor pattern. For example - $\mathbf{CPatt~~Cons~(VPatt~~x,~VPatt~~xs)}$ represents a constructor pattern $\mathbf{Cons}$ that takes two variable patterns $\mathbf{VPatt~~x}$ and $\mathbf{VPatt~~xs}$.  
+~~\\~~\\ 
+Similarly, constructors $\mathbf{RPatt}$ and $\mathbf{PPatt}$  are used to represent record pattern and product pattern in this chapter.
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{alltt} 
+append :: [A],[A] -> [A] = 
+    [],  ys -> ys
+    x:xs,ys -> x : append(xs,ys)
+\end{alltt}
+} 
+\end {minipage} &
+\begin{minipage}{3.2in}
+{
+\begin{align*} 
+&compile~~[u_1,u_2] \\
+&\quad \Big[~\Big[\\
+&\quad ~~\Big(~\Big[~CPatt~~Nil~,~VPatt~~ys~\Big], ~ ys~\Big), \\
+&\quad ~~\qquad \qquad \vdots\qquad\qquad  \\ 
+&\quad ~~\Big(~\Big[~CPatt~~Cons~(VPatt~~x,~VPatt~~xs),VPatt~~ys~\Big],\\
+&\qquad \qquad \qquad \qquad x:append(xs,ys)\Big)\\
+&\quad \Big]~\Big]\\
+&\quad default~~term
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Example : compile Function}
+\label{Pmatch:ExampleCompile}
+\end{center}
+\end{table}
+
+\section {Reduction Rules for compile Function}
+Following sections describe the reduction rules for the {\bf compile} function. The reduction rule applicable to a particular {\bf compile} function depends on what the first pattern of the pattern phrases (which is the second argument of the {\bf compile}) is. These reduction rules are repeatedly applied to the {\bf compile} function until the patterns associated with the pattern phrases is empty.
+
+\subsection {Variable Rule}
+This rule is applicable if the first pattern of all the pattern phrases are variable patterns (represented by the constructor $\mathbf{VPatt}$). This rule has been described in Table \ref {Pmatch:VarRedRule}. In Table \ref {Pmatch:VarRedRule}, 
+the syntax $\mathbf{VPatt~~v_1~@~p_{1,1}}$ represents that the first pattern of the first pattern phrase $\mathbf{p_{1,1}}$ has the structure of a variable pattern comprised of variable $\mathbf{v_1}$.
+~~\\~~\\
+In the reduction rule in Table \ref {Pmatch:VarRedRule}, the first variable pattern of every pattern phrase is substituted by the first term from the list of terms, the first argument of the {\bf compile} function, inside the corresponding term of every pattern phrase. In the rule, the notation $\mathbf{t_i~{[v_i/u_i]}}$ represents that the variable $\mathbf{v_i}$ has been substituted by a term $\mathbf{u_i}$ inside the body of term $\mathbf{t_i}$.
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~~[\mathbf{u_1},\ldots,u_n] \\
+&\quad \Big[~\Big[\\
+&\quad ~\Big(~\Big[~\mathbf{(VPatt~~v_{1})~@~p_{1,1}},~p_{1,2},\ldots,p_{1,n}~\Big],t_1\Big), \\
+&\qquad\qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad~\Big(~\Big[~\mathbf{(VPatt~~v_m)~@~p_{m,1}},~p_{m,2},\ldots,p_{m,n}~\Big],t_m\Big) \\
+&\quad \Big]~\Big]\\
+&\quad default~~term
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&compile~~[u_2,\ldots,u_n] \\
+&\quad \Big[~\Big[\\
+&\quad ~~\Big(~\Big[~p_{1,2},~\ldots~, ~ p_{1,n}~\Big],\mathbf{t_1~[v_1/u_1]}\Big), \\
+&\quad ~~\qquad \qquad \vdots\qquad\qquad  \\ 
+&\quad ~~\Big(~\Big[~p_{m,2},~\ldots~, ~ p_{m,n}~\Big],\mathbf{t_m~[v_m/u_1]}\Big)\\
+&\quad \Big]~\Big]\\
+&\quad default~~term
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Variable Rule}
+\label{Pmatch:VarRedRule}
+\end{center}
+\end{table}
+
+
+\subsection {Constructor Rule}
+This rule is applicable if the first pattern of all the pattern phrases are constructor patterns (represented by the constructor $\mathbf{CPatt}$ that takes two arguments: first argument is the constructor name and second argument is the arguments that the constructor mentioned in the first argument takes).
+~~\\~~\\
+Let us define a data type $\mathbf{D}$ with $\mathbf{e}$ number of constructors, $\mathbf{C_1,\ldots,C_e}$ using which the constructor reduction rule in Table \ref {Pmatch:ConsRedRule} is explained. The data definition of $\mathbf{D}$ has the form:
+\begin{align*}
+  data~~D~~(a_1..a_f)~~=~~& C_1~~us_v \\  
+                          & \quad \ldots \\
+                          & C_e~~us_z
+\end{align*}
+The constructor $\mathbf{C_1}$ in the defintion of $\mathbf{D}$ takes $\mathbf{v}$ number of arguments represented by $\mathbf{us_v }$. 
+~~\\~~\\
+A few important things about the Constructor Rule described in Table \ref {Pmatch:ConsRedRule} are:  
+\begin{itemize}
+  \item In the before column, the syntax $\mathbf{CPatt~~C_c~\big(p_{1,1,1},\ldots,p_{1,1,x}\big)@p_{1,1}}$ represents that the first pattern of the first pattern phrase $\mathbf{p_{1,1}}$ has the structure of a constructor pattern comprised of constructor $\mathbf{C_c}$ that takes $\mathbf{x}$ arguments which are $\mathbf{(p_{1,1,1},\ldots,p_{1,1,x})}$. $\mathbf{p_{1,1,i}}$ represents that it is the $\mathbf{i^{th}}$ nested pattern of the first pattern of the first pattern phrase. 
+  \item The list of list of pattern phrases are partitioned such that all the pattern phrases consisting of a particular constructor in the first pattern are grouped together in a list.
+  \item The after column of the rule shows that a {\sf case} statement is generated casing on the different constructors of data type $\mathbf{D}$.
+  \item Every constructor in the generated {\sf case} takes fresh variables as arguments and generates a corresponding {\bf compile} function. This {\bf compile} function appends the terms corresponding to the fresh variable list to the front of the list $\mathbf{[u_2,\ldots,u_n]}$. It also adds the inner patterns of the constructor to the front of respective pattern phrases. 
+\end{itemize}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~~[\mathbf{u_1},\ldots,u_n] \\
+&~~ \Big[~\Big[\\
+&~~~\Big(\Big[\mathbf{CPatt~~C_c~\big(p_{1,1,1},\ldots,p_{1,1,x}\big)@p_{1,1}},\ldots, p_{1,n}\Big],t_1\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{CPatt~~C_d~(p_{m,1,1},\ldots,p_{m,1,y})@p_{m,1}},\ldots, p_{m,n}\Big],t_m\Big) \\
+&\quad \Big]~\Big]\\
+&\quad default~~term
+\end{align*}
+~~\\
+{\bf The above compile can be rewritten to:} ~~\\
+\begin{align*} 
+&compile~~[\mathbf{u_1},\ldots,u_n] \\
+&~~ \Big[\\ 
+&~~~\Big[\\
+&~~~\Big(\Big[\mathbf{CPatt~~C_1~\big(p_{g,1,1},\ldots,p_{1,1,v}\big)@p_{g,1}},\ldots, p_{g,n}\Big],t_g\Big), \\
+&\qquad \qquad \qquad\qquad \vdots  \\ 
+&~~~\Big(\Big[\mathbf{CPatt~~C_1~(p_{h,1,1},\ldots,p_{h,1,v})@p_{h,1}},\ldots, p_{h,n}\Big],t_h\Big) \\
+&~~~\Big] \\
+&\qquad \qquad \qquad\qquad \vdots  \\ 
+&~~~\Big[\\
+&~~~\Big(\Big[\mathbf{CPatt~~C_e~\big(p_{i,1,1},\ldots,p_{i,1,z}\big)@p_{i,1}},\ldots, p_{i,n}\Big],t_i\Big), \\
+&\qquad \qquad \qquad\qquad \vdots  \\ 
+&~~~\Big(\Big[\mathbf{CPatt~~C_e~(p_{j,1,1},\ldots,p_{j,1,z})@p_{j,1}},\ldots, p_{j,n}\Big],t_j\Big) \\
+&~~~\Big] \\
+&~~\Big]\\
+&\quad default~~term
+\end{align*}
+}
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&\mathbf{case~~u_1~~of} \\
+&~~\mathbf{C_1~~(fv_1,\ldots,fv_v)~~}\to \\ 
+&\quad compile~\Big(\mathbf{[fv_1,\ldots,fv_v]}~\texttt{++}~[u_2\ldots,u_n]\Big) \\
+&\quad~~ \Big[~\Big[\\
+&\quad~~~\Big(\Big[\mathbf{p_{g,1,1},\ldots,p_{g,1,v}},p_{g,2},\ldots, p_{g,n}\Big],t_g\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad~~~\Big(\Big[\mathbf{p_{h,1,1},\ldots,p_{h,1,v}},p_{h,2},\ldots, p_{h,n}\Big],t_h\Big) \\
+&\quad\quad \Big]~\Big]\\
+&\quad\quad default~~term\\ 
+&\qquad\qquad\qquad\qquad \vdots \\ 
+&\qquad\qquad\qquad\qquad \vdots \\
+&~~\mathbf{C_e~~(fv_1,\ldots,fv_z)~~}\to \\ 
+&\quad compile~\Big(\mathbf{[fv_1,\ldots,fv_z]}~\texttt{++}~[u_2\ldots,u_n]\Big) \\
+&\quad~~ \Big[~\Big[\\
+&\quad~~~\Big(\Big[\mathbf{p_{i,1,1},\ldots,p_{i,1,z}},p_{i,2},\ldots, p_{i,n}\Big],t_i\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad~~~\Big(\Big[\mathbf{p_{j,1,1},\ldots,p_{j,1,z}},p_{h,2},\ldots, p_{j,n}\Big],t_j\Big) \\
+&\quad\quad \Big]~\Big]\\
+&\quad\quad default~~term\\ 
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Constructor Rule}
+\label{Pmatch:ConsRedRule}
+\end{center}
+\end{table}
+
+\subsection {Record Rule}
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~~[u_1,\ldots,u_n] \\
+&~\Big[~\Big[ \\ 
+&~~~\Big(\Big[\mathbf{RPatt~\big(D_1:p_{1,1,1},\ldots,D_k:p_{1,1,k}\big)@p_{1,1}},\ldots, p_{1,n}\Big],t_1\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{RPatt~\big(D_1:p_{m,1,1},\ldots,D_k:p_{m,1,k}\big)@p_{m,1}},\ldots, p_{m,n}\Big],t_m\Big) \\
+&~~\Big]~\Big]\\
+&\quad default~~term
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~\Big(\mathbf{[D_1~u_1,\ldots,D_{k}~u_1]}~~\texttt{++}\\
+&\qquad \qquad\quad [u_2,\ldots,u_n]\Big) \\
+&~~ \Big[~\Big[\\
+&~~ ~\Big(\Big[\mathbf{p_{1,1,1},\ldots,p_{1,1,k}},p_{1,2},\ldots,p_{1,n}\Big],t_1\Big), \\
+&\qquad\qquad \qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{p_{m,1,1},\ldots,p_{m,1,k}},p_{m,2},\ldots,p_{m,n}\Big],t_m~\Big)\\
+&~~ \Big]~\Big]\\
+&~~ default~~term
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Record Rule}
+\label{Pmatch:RecRedRule}
+\end{center}
+\end{table}
+
+
+
+
+\subsection {Product Rule}
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~~[u_1,\ldots,u_n] \\
+&~~ \Big[~\Big[\\
+&~~~\Big(\Big[\mathbf{PPatt~\big(p_{1,1,1},\ldots,p_{1,1,k}\big)~@~p_{1,1}},p_{1,2}\ldots, p_{1,n}\Big],t_1\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{PPatt~\big(p_{m,1,1},\ldots,p_{m,1,k}\big)~@~p_{m,1}},p_{m,2}\ldots, p_{m,n}\Big],t_m\Big) \\
+&\quad \Big]~\Big]\\
+&\quad default~~term
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~\Big(\mathbf{[\pi_0~u_1,\ldots,\pi_{k-1}~u_1]}~\texttt{++}~[u_2,\ldots,u_n]\Big) \\
+&~~ \Big[~\Big[\\
+&~~ ~\Big(\Big[\mathbf{p_{1,1,1},\ldots,p_{1,1,k}},p_{1,2},\ldots,p_{1,n}\Big],t_1\Big), \\
+&\qquad\qquad \qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{p_{m,1,1},\ldots,p_{m,1,k}},p_{m,2},\ldots,p_{m,n}\Big],t_m~\Big)\\
+&~~ \Big]~\Big]\\
+&~~ default~~term
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Product Rule}
+\label{Pmatch:ProdRedRule}
+\end{center}
+\end{table}
+
+\subsection {Mixture Rule}\label{Pmatch:MixRule}
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2.6in}
+{
+\begin{align*} 
+&compile~~[u_1,\ldots,u_n] \\
+&~~ \Big[~\Big[\\
+&~~~\Big(\Big[\mathbf{VPatt~~v_1@~p_{1,1}},\ldots, p_{1,n}\Big],t_1\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{VPatt~~v_q@~p_{q,1}},\ldots, p_{q,n}\Big],t_q\Big), \\
+&~~~\Big(\Big[\mathbf{CPatt~~C_1~us_{\texttt{q+1}}@~p_{\texttt{q+1},1}},\ldots, p_{\texttt{q+1},n}\Big],t_{\texttt{q+1}}\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{CPatt~~C_1~us_{r}@~p_{r,1}},\ldots, p_{r,n}\Big],t_{r}\Big),\\
+&~~~\Big(\Big[\mathbf{VPatt~~v_{\texttt{r+1}}@~p_{\texttt{r+1},1}},\ldots, p_{\texttt{r+1},n}\Big],t_{\texttt{r+1}}\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad \Big]~\Big]\quad default~~term
+\end{align*}
+{\bf The above compile function can be rewritten to:}
+\begin{align*} 
+&compile~~[u_1,\ldots,u_n] \\
+&~~ \Bigg[~\\ 
+&~~~\Bigg[~\Big(\Big[\mathbf{VPatt~~v_1@~p_{1,1}},\ldots, p_{1,n}\Big],t_1\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\qquad\Big(\Big[\mathbf{VPatt~~v_q@~p_{q,1}},\ldots, p_{q,n}\Big],t_q\Big)~\Bigg], \\
+&~~~\Bigg[\Big(\Big[\mathbf{CPatt~~C_1~us_{\texttt{q+1}}@~p_{\texttt{q+1},1}},\ldots, p_{\texttt{q+1},n}\Big],t_{\texttt{q+1}}\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~~~\Big(\Big[\mathbf{CPatt~~C_1~us_{r}@~p_{r,1}},\ldots, p_{r,n}\Big],t_{r}\Big)~\Bigg],\\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad \Bigg]~~default~~term
+\end{align*}
+} 
+\end {minipage} &
+\begin{minipage}{3in}
+{
+\begin{align*} 
+&compile~\Big([u_1,\ldots,u_n]\Big) \\
+&~~ \Big[~\Big[\\
+&~~~\Big(\Big[\mathbf{VPatt~~v_1@~p_{1,1}},\ldots, p_{1,n}\Big],t_1\Big), \\
+&\qquad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~\Big(\Big[\mathbf{VPatt~~v_q@~p_{q,1}},\ldots, p_{q,n}\Big],t_q\Big) \\
+&~~ \Big]~\Big]\\~~\\
+&~~  \Bigg( \\ 
+&~~~~\quad compile~\Big([u_1,\ldots,u_n]\Big) \\
+&\quad~~\quad \Big[~\Big[\\
+&~~~~~\quad\quad\Big(\Big[\mathbf{CPatt~~C_1~us_{\texttt{q+1}}@~p_{\texttt{q+1},1}},\ldots, p_{\texttt{q+1},n}\Big],t_{\texttt{q+1}}\Big), \\
+&\quad\qquad\quad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~~~\quad\quad\Big(\Big[\mathbf{CPatt~~C_1~us_{r}@~p_{r,1}},\ldots, p_{r,n}\Big],t_{r}\Big)\\
+&\quad\quad\quad \Big]~\Big]\\~~\\
+&\quad\quad  \Bigg( \\ 
+&\quad\qquad\quad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&~~~~\qquad\qquad compile~\Big([u_1,\ldots,u_n]\Big) \\
+&~~~~\qquad\qquad\quad\quad \Big[~\Big[\ldots \Big]~\Big]\\
+&\quad\qquad\quad \qquad \qquad\qquad \vdots\qquad\qquad  \\ 
+&\quad\quad \Bigg)\\ 
+&~~  \Bigg)\\ 
+\end{align*}
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Mixture Rule}
+\label{Pmatch:MixRedRule}
+\end{center}
+\end{table}
+
+\subsection {Empty Rule and Normal Form}
+
+
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ |c|c|} \hline
+{}& {}\\
+{\bf Before} & {\bf After} \\ 
+{}& {}\\
+\hline
+\begin{minipage}{2in}
+{
+\begin{align*}
+&match~~[~] \\
+&\qquad\qquad \Big [ \\ 
+&\qquad\qquad\quad ([~],~~t_1),\\ 
+&\qquad\qquad\quad \quad \vdots \\ 
+&\qquad\qquad\quad ([~],~~t_n) \\
+&\qquad\qquad \Big ]\\
+&\qquad\qquad default~~term
+\end{align*} 
+} 
+\end {minipage} &
+\begin{minipage}{1.5in}
+{
+\begin{align*}  
+& t_1
+\end{align*}
+}
+\end {minipage}\\ 
+\hline 
+
+\begin{minipage}{2in}
+{
+\begin{align*}
+&match~~[~]~~[~]~~default~~term
+\end{align*} 
+} 
+\end {minipage} &
+\begin{minipage}{1.5in}
+{
+\begin{align*} 
+& default~~term
+\end{align*}
+}
+\end {minipage} 
+
+
+\tabularnewline
+\hline
+
+\end{tabular}
+\caption{Empty Rules}
+\label{Pmatch:Normalform}
+\end{center}
+\end{table}
+
+
+
+
+\end {document}

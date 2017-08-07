@@ -1,0 +1,1877 @@
+\documentclass[11pt]{article}
+
+\title{Type Inferencing in MPL}
+\title{Typing Rules for Sequential MPL}
+\usepackage{amsmath }
+\usepackage{framed}
+\usepackage{proof}
+\usepackage{enumerate,xspace,stmaryrd}
+\usepackage{amsmath,amssymb,latexsym}
+\usepackage{graphicx} 
+\usepackage{sectsty} 
+\usepackage{textcomp,xspace}
+\usepackage[top=2cm, bottom=2.5cm, right=2.5cm, left=2.5cm]{geometry}
+\usepackage{latexsym}  %For plain TeX symbols, such as \Box used in \qed
+\usepackage{euscript}  %%Euler Script font
+\usepackage {mdframed}
+\usepackage{ifpdf}
+\ifpdf
+  \usepackage{epstopdf}
+\fi 
+\usepackage{etoolbox}
+\BeforeBeginEnvironment{tabular}{\begin{center}\small}
+\AfterEndEnvironment{tabular}{\end{center}}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usepackage{tikz-cd}
+\tikzset
+  {cross/.style={cross out, draw=black, minimum size=2*(#1-\pgflinewidth), inner sep=0pt, outer sep=0pt},cross/.default={1pt}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     Special symbol macros ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\x}{\times}
+\newcommand{\PhiGamma} {\Phi~|~\Gamma}
+\newcommand{\Gvdash} {\Gamma \vdash}
+\newcommand{\VdashDel} {\Vdash \Delta} 
+\newcommand{\ox}{\otimes}
+\newcommand{\context}[2]{#1 \left[\hspace{-1.7pt}\left[ #2 \right]\hspace{-1.7pt}\right]}
+\newcommand{\bag}[1]{\{\hspace{-2.5pt}[ #1 ]\hspace{-2.5pt}\}}
+\newcommand{\cons}{\ensuremath{{\sf cons~}}\xspace}
+\newcommand{\dest}{\ensuremath{{\sf dest~}}\xspace}
+\newcommand{\get}{\ensuremath{{\sf get ~ x ~\alpha~}}\xspace}
+\newcommand{\putC}{\ensuremath{{\sf put ~ x ~\alpha~}}\xspace} 
+\newcommand{\close}{\ensuremath{{\sf close ~\alpha~}}\xspace}
+\newcommand{\halt}{\ensuremath{{\sf halt ~\alpha~}}\xspace}
+\newcommand{\plug}{\ensuremath{{\sf plug ~ (\alpha_1,\ldots,\alpha_n) ~(s_1,s_2)}}\xspace}
+
+\newcommand{\splitC}
+    {
+     \ensuremath{{\sf split ~~\alpha~~ (\alpha_1,\alpha_2)}}
+     \xspace
+    }
+
+
+\newcommand{\fold}[2]{\begin{array}{l}
+                        {\sf fold~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\unfold}[1]{\begin{array}{l}
+                        {\sf unfold~} \\
+                        {\sf ~s~\texttt{=>}} 
+                        \left| \begin{array}{lcl} #1 \end{array} 
+                        \right.~~\\{\sf on~~t}\end{array}}
+
+\newcommand{\fork}[2]{\begin{array}{l}
+                        {\sf fork~} #1 \\
+                        {\sf ~~as~}
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+\newcommand{\case}[2]{\begin{array}{l}
+                        {\sf case~} #1 \\
+                        {\sf ~of~} 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\switch}[1]{\begin{array}{l}
+                        {\sf switch~} \\
+                        ~~~\left| \begin{array}{lcl} #1 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\rec}[1]{\begin{array}{l}
+                        {\sf rec~} \\
+                        {\sf ~of~}
+                        \left| \begin{array}{lcl} #1 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\rPatt}[1]{\begin{array}{l}
+                        {\sf RPatt~} \\
+                        {\sf ~of~}
+                        \left| \begin{array}{lcl} #1 \end{array} 
+                        \right.\end{array}}
+
+
+
+\newcommand{\letS}[2]{\begin{array}{l}
+                         ~#1 \\
+                        {\sf ~where~} \\
+                        ~~~\left|\begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+
+\newcommand{\fun}[1]{\begin{array}{l}
+                        {\sf fun~ f} \\~~ 
+                        \left| \begin{array}{lcl} #1 \end{array} 
+                        \right.\end{array}}
+
+\newcommand{\funT}[2]{\begin{array}{l}
+                        {\sf fun~ f~::~} #1 \\~~ 
+                        \left| \begin{array}{lcl} #2 \end{array} 
+                        \right.\end{array}}
+
+\begin{document}
+
+\maketitle
+
+\section{Type Inferencing}
+
+\subsection {Introduction}
+Once an MPL program is lexed and parsed, an abstract syntax tree (AST) for the program is generated. An AST syntax is a faithful representation of the original MPL program in that all the information present in the original program is present in the AST. The next stage in the interpretation of the MPL program is type inferencing. This step ensures that only meaninful programs that have valid types constinue the process of interpretation.
+~~\\~~\\
+This chapter deals with the type inference of the various MPL constructs like functions, terms, patterns, pattern phrases, processes and process commands.
+
+\tikzstyle{stage} = [rectangle,minimum width=2.8cm,rounded corners,
+                     minimum height=1.8cm,text centered, draw=black]
+\tikzstyle{arrow} = [very thick,->,>=stealth]
+\begin{figure}[h!]
+\begin {center}
+\begin{tikzpicture}[scale = 1.5,every node/.style={very thick},node distance=2cm]
+ \node (LE) [stage] {{\sf \small Lexing}};
+ \node (PA) [stage,right of=LE,xshift=2.2cm] {{\sf \small Parsing}};
+ \node (TC) [stage,right of=PA,xshift=2.2cm,text width = 1.8cm] {{\sf \small Type Inferencing}};
+ \node (CP) [stage,below of=TC,yshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Compiling Pattern Matching}};
+ \node (LL) [stage,left of=CP,xshift=-2.2cm,text width = 1.8cm] 
+            {{\sf \small Lambda Lifting}};
+ \node (AM) [stage,left of=LL,xshift=-2.2cm,text width = 1.8cm,fill=gray!30] 
+            {{\sf \small Translation to AMPL \& Running Programs}};
+ \draw [arrow] (LE) -- (PA);
+ \draw [arrow] (PA) -- (TC);
+ \draw [arrow] (TC) -- (CP);
+ \draw [arrow] (CP) -- (LL);
+ \draw [arrow] (LL) -- (AM);
+\end{tikzpicture}
+\caption{Interpretation Stages of MPL} \label{fig:CSAM}
+\end{center}
+\end{figure}
+
+\subsection {Type Formation Rules}
+Let T be a set of atomic types, $\Omega_{D}$ be a set of type formation symbols for data types and $\omega_{D}$ is a function called arity that describes the number of parameters that the type needs.
+\begin{align*}
+    \omega_{D} ~ : ~ \Omega_{D} ~ \to ~ \mathbb {N}  
+\end{align*}
+Similarly, $\omega_{C}$ is the arity function for $\Omega_{C}$ which is a set of type formation symbols for codata types.
+\begin{align*}
+    \omega_{C} ~ : ~ \Omega_{C} ~ \to ~ \mathbb {N}  
+\end{align*}
+Similarly, $\omega_{P}$ is the arity function for $\Omega_{P}$  and $\omega_{CP}$ is the arity function for $\omega_{CP}$. $\Omega_{P}$ and $\Omega_{CP}$ are respectively the set of type formation rules for protocols and coprotocols respectively.
+~~\\~~\\ 
+Elements of T can be type variables or type constants like Int, Double and Char. Apart from the atomic types, MPL also has data types, codata types and products as types. Type formation rules describes the rules for the construction of valid types from the elements of T.
+~~\\~~\\ 
+The type formation rules for MPL are given by the rules in Table \ref {STypeInf:TypeForm}.  
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline \\
+\begin{minipage}{3.4in}
+{
+\infer []
+  {
+    A ~~~ type   
+  }
+  { 
+    A \in T
+  }
+~~\\~~\\
+\infer [prod]
+  {
+    A_1 \times \ldots \times A_n ~~~ type   
+  }
+  { 
+    A_1~ type && \ldots && A_n ~type  
+  }
+~~\\~~\\~~\\ 
+\infer [data ~ type]
+  {
+    D~(A_1 \ldots A_n) ~~~ type   
+  }
+  { 
+    A_1~ type && \ldots && A_n ~type  \hskip 2em \omega (D)~ =~ n 
+  }
+~~\\~~\\~~\\ 
+\infer [codata ~ type]
+  {
+    C~(A_1 \ldots A_n) ~~~ type   
+  }
+  { 
+    A_1~ type && \ldots && A_n ~type \hskip 2em \omega (C)~ =~ n 
+  }
+~~\\~~\\~~\\ 
+\infer [protocol]
+  {
+    P~(A_1 \ldots A_n) ~~~ type   
+  }
+  { 
+    A_1~ type && \ldots && A_n ~type  \hskip 2em \omega (P)~ =~ n 
+  }
+~~\\~~\\~~\\ 
+\infer [coprotocol]
+  {
+    CP~(A_1 \ldots A_n) ~~~ type   
+  }
+  { 
+    A_1~ type && \ldots && A_n ~type \hskip 2em \omega (CP)~ =~ n 
+  }
+~~\\~~\\
+}
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Type Formation Rules}
+\label{STypeInf:TypeForm}
+\end{center}
+\end{table}
+
+
+\subsection {Type Inferencing}
+Consider an Algebraic Type System consisting of functions and variables as terms. The term formation rules for the terms are as below.
+~~\\~~\\ 
+\infer [\rm var]
+  {
+    \Gamma, x:A \vdash x:A
+  }
+  { 
+  }
+~~\\~~\\
+\infer [\rm fun]
+  {
+    \Gamma \vdash ~ f (m_1,\ldots,m_n):B 
+  }
+  { 
+    \Gamma \vdash m_1 : A_1, && \ldots &&
+    \Gamma \vdash m_k : A_k && f:A_1,\ldots,A_k \to B \in \Omega  
+  }
+~~\\~~\\ 
+In this type system consider a function,$f(x,y)~ = ~x $ such that
+$f:A,B \to A \in \Omega$. Let us try inferring the type of $f~(1,y).$
+~~\\~~\\ 
+\infer []
+  {
+   y:B \vdash ~ f (1,y):Int  
+  }
+  { 
+    y:B \vdash y:B && y:B \vdash 1:Int 
+    && f:A ,B \to A \in \Omega    
+  }
+~~\\~~\\ 
+Please note that $f:Int,B \to Int$ is a more specific type than the type of $f$ initially assigned in $\Omega$. The new more specific type of $f$ is consistent with its original more generic type. However, this way of type inferencing while suitable for calculation by hand doesn't lend itself well to automation. For this reason, the typing rules are enhanced with equations that capture the constraint relationship between the different parts of the construct being type inferred.
+~~\\~~\\ 
+\infer [\rm var]
+  {
+    \Gamma, x:A \vdash x:B ~~ \big\langle A = B \big\rangle
+  }
+  { 
+  }
+~~\\~~\\
+\infer [\rm fun]
+  {
+    \Gamma \vdash ~ f (m_1,\ldots,m_n):C 
+    ~~\big\langle B = C,A_1 = A_1^\prime,\ldots,A_k = A_k^\prime \big\rangle
+  }
+  { 
+    \Gamma \vdash m_1 : A_1^\prime, && \ldots &&
+    \Gamma \vdash m_k : A_k^\prime && f:A_1,\ldots,A_k \to B \in \Omega  
+  }
+~~\\~~\\
+Now consider type inferring the function $ f(1,y)$ in this setup.
+~~\\~~\\
+\infer []
+  {
+   y:B \vdash ~ f (1,y):Int  
+   ~~~\big\langle 
+      A^\prime = Int,~B^\prime = B,~A = Int 
+   \big\rangle
+  }
+  { 
+    y:B \vdash y:B^\prime && y:B \vdash 1:Int 
+    && f:A^\prime,B^\prime \to A \in \Omega    
+  }
+~~\\~~\\ 
+Once the type equations are solved by relacing the value of $A,B$ and $A^\prime$ in function type of $f$, $Int,B \to Int $ is obtained. This is the type of function $f$.
+~~\\~~\\ 
+The type inference has been broken down into two mechanical steps, namely {\em Generation of Type Equations} and {\em Solving Type Equations}. The mechanical and algorithmic nature of this presentation is useful when implementing type systems on a computer.  
+~~\\~~\\
+One drawback of the equational presentation of the type systems mentioned in the previous paragraph is that one ends up with a big linear list of equations. Solving this list of equations maybe slow as one needs to go through the entire list every time in order to look for substitutions.
+~~\\~~\\
+In this thesis, we have modified this presentation to take advantage of the structure of the {\em type inference tree} when searching for substitutions. In this approach, the algorithm only searches the part of the type inference tree which could have generated these substitutions. Thus our algorithm localises the substitution search leading to faster soltuion of type equations. Our algorithm also has an added advantage of localising the type errors. This results in better location accuracy when reporting the type errors.
+~~\\~~\\ 
+Consider a function $f(a,b)$ such that $ f:~A,B \to C \in \Omega $ and one needs to type infer $f(x+y,z)$ in our setup. In the below {\em type inference tree}, the context x:X,y:Y,z:Z has been replaced with symbol $\Gamma$ for the purpose of succinct representation. 
+
+~~\\~~\\
+\infer []
+  {
+   \Gamma \vdash ~ f (x+y,z):A  
+   ~~~\big\langle 
+      A^\prime = Int,~B^\prime = B,~A = Int 
+   \big\rangle
+  }
+  { 
+    \infer []
+     {
+      \Gamma \vdash x + y ~:C
+     } 
+     {
+       \infer []
+       {
+        \Gamma \vdash x:D
+       }
+       {
+       }
+        && 
+       \infer []
+       {
+        \Gamma \vdash y:E
+       }
+       {
+       }
+     } 
+      && \infer []
+           {\Gamma \vdash  z:B} 
+           {}
+      &&f:P~,Q \to R \in \Omega 
+  }
+
+
+\subsection {Overview of Type Inference of MPL Constructs}
+Type inference involves two main steps. 
+\begin {itemize}
+\item {\bf Generating Type Equations} - Type Equations represent the constraint relationship between the different parts of the construct being type inferred. 
+~~\\~~\\
+Using the typing rules, a series of equations are generated in the proof search direction. The equation structure hierarchical following the shape of the type inference tree. Thus, the placement of an equation inside a type equation depends on thes the location within a type inference tree that resulted in that equation within the type equation. This approach allows hierarchical solution of type equations and better localisation of type errors.     
+\item {\bf Solving Type Equations} - The type equations are solved in order to get the most general type of a given program.
+\end{itemize}
+In this chapter, the generation fo type equations for the Sequential MPL (terms and functions) is dicussed followed by the generation of type equation for Concurrent MPL. Finally, we look at an algorithm to solve the type equations to get the most general type. Section discusses type equation generation for sequential terms, Section discusses type equation generation for pattern
+
+\section {Generating Type Equations for Sequential Terms }
+Here the type inference rules for the various sequential MPL constructs are dicussed. The type inference rules can be thought of as term formation rules enhanced with the typing information of the constituting terms.
+
+% ---------------------------------------------------
+% ---------Constructor/Destructor--------------------
+% ---------------------------------------------------
+\subsection {Data Type Terms (case, constructor and fold terms)}\label{STInfer:DataTypeTerms}
+{\sf case, constructor} and {\sf fold} are the sequential MPL terms that work on data types. Section \ref {sTypeInfer:dataDef} describes a data type declaration in MPL and Section describes the typing rules for {\sf case, constructor} and {\sf fold} terms.
+
+\subsubsection {Data Type Declaration}\label{sTypeInfer:dataDef}
+Consider a pair of mutually recursive data types: data type $D(A_1,\ldots,A_k)$ with constructors $C_1,\ldots,C_m$ and data type $P(B_1,\ldots,B_l)$ with constructors $Q_1,\ldots,Q_r$  defined below: 
+\begin{align*} 
+&data~ \\
+&\qquad  D(A_1,\ldots,A_k)  ~\to~ Z = \\
+ &\qquad \qquad C_1 : T_{11},\ldots, T_{1a} ~~~~~\to ~~~ Z \\
+ &\qquad \qquad~~ \vdots \hskip 4em \vdots \hskip 4.5em \vdots \\ 
+ &\qquad \qquad C_m : T_{m1},\ldots, T_{mn} ~~\to ~~~ Z \\
+ &\qquad and \\
+&\qquad  P(B_1,\ldots,B_l)  ~\to~ Y = \\
+ &\qquad \qquad Q_1 : T_{11}^\prime,\ldots, T_{1b}^\prime ~~~\to ~~~ Y \\
+ &\qquad \qquad~~ \vdots \hskip 4em \vdots \hskip 4.3em \vdots \\ 
+ &\qquad \qquad Q_r : T_{r1}^\prime,\ldots, T_{rs}^\prime ~~~\to ~~~ Y \\~~\\
+\end{align*}
+Following properties are explained with the data type $D(A_1,\ldots,A_k)$ in mind. However, the same properties will hold true for the data type $D(B_1,\ldots,B_l)$ as well.
+\begin{itemize}
+  \item The data type $D(A_1,\ldots,A_k)$ is polymorphic in type variables \{$A_1,\ldots,A_k$\}. ${Z}$ is called a state variable. The union of all the type variables used in the different constructors of the data type is \{${Z,A_1,\ldots,A_k}$\}.
+  \item Suppose Constructor ${C_i}$ takes $j$ number of input terms.The types of these terms are represented by ${T_{11},\ldots,T_{1a}}$   respectively.
+  \item ${T_{ij}}$ is a type expression such that:
+\begin{align*}
+Type~Var~(T_{ij})~~\subseteq~~ \{Z,A_1,\ldots,A_k\}
+\end{align*}
+\item For the constructor ${C_i}$ of data type ${D}$:
+\begin{itemize}
+  \item the type of the {\sf fold} function corresponding to that constructor is directly given by the type expression corresponding to the constructor in the data definition. The type of fold corresponding to constructor ${C_i}$ is represented by the notation:
+  \begin{align}
+    \forall~Z,V_1,\ldots,V_x~.~T_{i1},\ldots,T_{ij}~\to~Z
+  \end{align}
+  where $\forall~Z,V_1,\ldots,V_x$ represents that the the type expression $T_{i1},\ldots,T_{ij}~\to~Z$, which is a function type, is universally quantified by the type variables $Z,V_1,\ldots,V_x$. In other words, the  set of type variables  $\{Z,V_1,\ldots,V_x\}$ is present in the body of the the type expression $T_{i1},\ldots,T_{ij}~\to~Z$. $\{Z,V_1,\ldots,V_x\}$ is a subset of $\{Z,A_1,\ldots,A_k\}$, the set of all the type variables used in the data definition $D$. 
+  \item the type of the constructor ${C_i}$ is given by substituting the state variable $Z$ in the body of the corresponding type expression with the name of the data definition along with its polymorphic variables $D(A_1,\ldots,A_k)$. This is represented by the notation:
+  \begin{align*}
+    (\forall~Z,A_1,\ldots,A_k~.~T_{i1},\ldots,T_{ij}~\to~Z)~D(A_1,\ldots,A_k)
+  \end{align*}
+ Note that for this function, the complete set of type variables present in the data definition are put under universal quantification. This is done because the substitution of $Z$ with $D(A_1,\ldots,A_k)$ is anyways going to have that effect. Rather than refreshing the variables under universal quantification after the substitution of $Z$ with $D(A_1,\ldots,A_k)$, one might as well start with all the variables in the data definiton. The subtitution of $Z$ with $D(A_1,\ldots,A_k)$ in the body of type expression corresponding to the constructor $C_i$ can be represented by the notation:
+ \begin{align}
+    (\forall~A_1,\ldots,A_k~.~T_{i1},\ldots,T_{ij}~\to~Z)~~\Big[D(A_1,\ldots,A_k)/Z\Big]
+  \end{align}
+\end{itemize}
+\end{itemize}
+For all the constructors of a data type, the type of their folds and the types of constructors themselves, represented by $(1)$ and $(2)$ respectively, are inserted into the symbol table. Symbol table is a data structure used in the type inference process which acts as a repository of information for the different symbols used in the program. 
+~~\\~~\\
+The fold and constructor function types corresponding to the constructors of the data type definiton can be looked up and used for generating equations. However, before using the fold and the constructor function types in the generation of type equations, they must be $\alpha$-renamed with fresh variables to avoid any naming conflicts with variables already present in the type equation. For the same reason, the $\alpha$-renaming technique is used with other sequential MPL constructs as well.
+~~\\~~\\ 
+The below notation represents that the fold type of constructor $C_i$ given by $(1)$ has been substituted with fresh variables $V_1^\prime,\ldots,V_x^\prime$ for $V_1,\ldots,V_x$ respectively:
+\begin{align*}
+(T_{i1},\ldots,T_{ij}\to Z)~~[Z^\prime/Z,V_1^{\prime}/V_1,\ldots,V_x^{\prime}/V_x]
+\end{align*}
+Similarly, the type of a constructor function given by $(2)$ substituted with fresh variables $A_1^\prime,\ldots,A_k^\prime$ for $A_1,\ldots,A_k$ respectively can be represented as:
+\begin{align*}
+(T_{i1},\ldots,T_{ij}\to Z)~[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k]
+\end{align*}
+
+
+\subsubsection {Constructor Term} 
+A data type has a set of {\sf constructors}. The {\sf constructors} of a data type sre used to generate instances of that data type. 
+~~\\~~\\
+The type inference rule for {\sf constructors} is described in Table \ref {STypeInf:DataTermsRulesCons}. The data type ${D(A_1,\ldots,A_k)}$ referred to in the table has been defined in Section \ref {sTypeInfer:dataDef}. Constructor ${C_i}$ used in Table \ref {STypeInf:DataTermsRulesCons} is a constructor of data type ${D(A_1,\ldots,A_k)}$ and 
+it takes ${j}$ arguments. A few noteworthy points about the type inference rule for the constructor ${C_i}$ of data type $D$, provided in Table \ref {STypeInf:DataTermsRulesCons}, are as follows:
+\begin{itemize}
+  \item The output type of a constructor term is the data type of which it is a constructor. The equation corresponding to this relationship is:
+   \begin{align*}
+    T~=~D(A_1^{\prime},\ldots,A_k^{\prime})
+   \end{align*}
+   where ${A_1^{\prime},\ldots,A_k^{\prime}}$ are fresh variables used instead of the variables ${A_1,\ldots,A_k}$ respectively.
+    
+  \item The types of the various arguments of the constructor are the type expressions at the corresponding positions of that data constructor in the data definition with the state variable ${Z}$ substituted with ${D(A_1^{\prime},\ldots,A_k^{\prime})}$. The type ${T_j}$ of the ${j^{th}}$ argument of constructor ${C_i}$ is given by:
+  \begin{align*}
+    T_j = T_{ij}~\big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k\big]
+  \end{align*}
+  where ${T_{ij}}$ is the type expression corresponding to the ${j^{th}}$ argument of the constructor ${C_i}$ in the data definition of ${D}$. Syntax ${T_{ij}~\big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k\big]}$ represents that in the body of type expression
+   ${T_{ij}}$, a list of substitutions $\big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k\big]$ are used. 
+
+  \item $E_1$, $\ldots$, $E_j$ are the type equations generated for the terms $t_1$, $\ldots$, $t_j$ respectively.
+\end{itemize}
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline \\
+\begin{minipage}{6in}
+{
+\infer [\rm cons]
+  { 
+    \begin {array} [c]{l}  
+        \Gamma \vdash \cons (C_i,[t_{1},\ldots,t_j])~:~T \\~~\\  
+        \hskip 8em
+        \Bigg\langle
+            \exists \,
+            \begin
+              {array}[c]{l}
+              T_1,\ldots,T_j, \\
+              A_1^\prime,\ldots,A_k^\prime .
+            \end{array}
+            \begin
+              {array}[c]{l} T = D(A_1^{\prime},\ldots,A_k^{\prime}),\\
+              T_1 = T_{i1}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\ 
+              \qquad\qquad\qquad\qquad\vdots\\ 
+              T_j = T_{ij}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+              E_1,E_2,\ldots,E_j
+            \end{array} 
+        \Bigg\rangle
+    \end {array}
+  } 
+  { \Gamma \vdash t_1:T_1 ~~~\langle E_1 \rangle && \ldots && ~~~
+    \Gamma \vdash t_j:T_j ~~~\langle E_j \rangle
+  }
+}
+\end {minipage} 
+\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for constructor}
+\label{STypeInf:DataTermsRulesCons}
+\end{center}
+\end{table}
+
+
+\subsubsection {case Term} 
+{\sf case} term branches on the different constructors of a data type. Every branch consists of a constructor and a sequential term. When a branch with a constructor ${C_i}$ is selected, the corresponding sequential term ${t_i}$ is executed.
+~~\\~~\\ 
+Table \ref {STypeInf:DataTermsCase} describes the type inference rules for {\sf case} term. Noteworthy points about the type inference rule for {\sf case} term provided in Table \ref {STypeInf:DataTermsCase} are below:
+\begin{itemize}
+  \item The type of the term being cased on should be a data type. This should be the same data type of which ${C_1,\ldots,C_m}$ are constructors. This relationship is represented by the equation:
+  \begin{align*}
+   T_0 = D(A_1^\prime,\ldots,A_k^\prime)
+  \end{align*}
+   where ${A_1^{\prime},\ldots,A_k^{\prime}}$ are fresh variables used instead of the variables ${A_1,\ldots,A_k}$ respectively.
+
+  \item The output type of the {\sf case} term is the type of the terms ${t_1,\ldots,t_m}$. Thus, in a well formed case expression the types of all the terms ${t_1,\ldots,t_m}$ should be the same.
+  \item The type ${F_{ij}}$ of the term ${x_{ij}}$, which is the ${j^{th}}$ argument of the constructor ${C_i}$, is given by the following equation:
+  \begin{align*}
+  F_{ij}~=~T_{ij}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big]
+  \end{align*}
+  where ${T_{ij}}$ is the type expression corresponding to ${x_{ij}}$ in the data definition ${D}$.\\ 
+  $\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big]$ represents a list of substitutions to be made inside the body of the type expression $T_{ij}$.
+
+  \item ${E_1,\ldots,E_m}$ are respectively the type equations generated for the terms ${t_1,\ldots,t_m}$ in the context expanded by the variables associated with the respective constructors. 
+  \item ${E_0}$ represents the set of type equations for term ${t}$, the term which is cased on.
+\end{itemize}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline \\
+\begin{minipage}{6in}
+{
+\infer [\rm case]{
+      \begin {array} [c] {l}
+         \Gamma \vdash 
+         \case {t} 
+          {
+            \begin{array}[c]{lcl}
+              {C_1~x_{11},\ldots,x_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {C_m~x_{m1},\ldots,x_{mn}} & \to & t_m
+            \end{array}          
+          }:T
+            \\~~\\ \hskip 6em
+             \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,T_1,\ldots,T_m, \\
+                  F_{11},\ldots,F_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  F_{m1},\ldots,F_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0 = D(A_1^\prime,\ldots,A_k^\prime),\\
+                  T_1 = T,\ldots,T_m = T\\
+                  F_{11}= T_{11}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{1a}= T_{1a}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{m1}= T_{m1}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{mn}= T_{mn}~\Big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  E_0,E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle
+      \end {array}    
+       }
+       {
+         \Gamma \vdash t:T_0 ~ \langle E_0 \rangle &&
+         \begin {array}[c]{lcll} 
+             \Gamma,x_{m1}:F_{m1},\ldots,x_{mn}:F_{mn} & \vdash & t_m : T_m
+             & \langle E_m \rangle \\
+             \hskip 10em \vdots\\ 
+             \Gamma,x_{11}:F_{11},\ldots,x_{1a}:F_{1a} & \vdash & t_1 : T_1
+             & \langle E_1 \rangle 
+         \end{array} 
+       }~~\\~~\\  
+}
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for case term}
+\label{STypeInf:DataTermsCase}
+\end{center}
+\end{table}
+
+\subsubsection {fold Term}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline \\
+\begin{minipage}{6in}
+{
+\infer [\rm fold] {
+    \begin {array}[c]{l}
+         \Gamma \vdash 
+         \fold {t} 
+          {
+            \begin{array}[c]{lcl}
+              {C_1~:~x_{11},\ldots,x_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {C_m~:~x_{m1},\ldots,x_{mn}} & \to & t_m\\ 
+              {Q_1~:~y_{11},\ldots,y_{1b}} & \to & u_1 \\
+              \vdots & \vdots & \vdots \\
+              {Q_r~:~y_{r1},\ldots,y_{rs}} & \to & u_r  
+            \end{array}          
+          }:T \\~~\\ \hskip 8em
+               \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,T_1,\ldots,T_m, \\
+                  F_{11},\ldots,F_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  F_{m1},\ldots,F_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T_0 = D(A_1^\prime,\ldots,A_k^\prime),\\
+                  T_1 = T,\ldots,T_m = T\\
+                  F_{11}= T_{11}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{1a}= T_{1a}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{m1}= T_{m1}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{mn}= T_{mn}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  E_0,E_1,\ldots,E_m,\\
+                  E_1^\prime,\ldots,E_r^\prime
+                \end{array} 
+            \Bigg\rangle 
+    \end {array} 
+       }
+       {
+         \begin {array}[c]{l}
+             \\~~\\
+             t:T_0 ~ \langle E_0 \rangle 
+         \end {array} &
+             \begin {array} [c] {lcll}   
+                 x_{11}:F_{11},\ldots,x_{1a}:F_{1a} & \vdash & t_1 : T_1          
+                 & \langle E_1 \rangle \\
+                 \qquad \vdots & ~ \vdots & \qquad \vdots \\ 
+                 x_{m1}:F_{m1},\ldots,x_{mn}:F_{mn} & \vdash & t_m : T_m 
+                 & \langle E_m \rangle \\~~\\
+                 y_{11}:G_{11},\ldots,y_{1a}:G_{1b} & \vdash & u_1 : U_1          
+                 & \langle E_1^\prime \rangle \\
+                 \qquad \vdots & ~ \vdots & \qquad \vdots \\ 
+                 y_{r1}:G_{r1},\ldots,y_{rs}:G_{rs} & \vdash & u_r : U_r
+                 & \langle E_r^\prime \rangle
+             \end {array} 
+       }
+}
+\end {minipage} 
+\\ 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for fold term}
+\label{STypeInf:DataTermsFold}
+\end{center}
+\end{table}
+{\sf fold} is used to implement recursion in a disciplined manner. The recursive functions written using {\sf fold} always terminate.
+The function type corresponding to {\sf fold} for a constructor is directly obtained from the type expression corresponding to the constructor in the data definition.
+~~\\~~\\ 
+Before moving on the type inference of the {\sf fold} term, one must remeber from the chapter on sequential MPL that folding over the data type $D$ which is mutually recursive to data type $P$ requires all the constructors of both the data types $D$ and $P$ listed in the {\sf fold} term. 
+~~\\~~\\ 
+Table \ref{STypeInf:DataTermsFold} describes the type inference rule for the {\sf fold} term over data type $D$. Noteworthy points about the type inference rules for {\sf fold} term from Table \ref {STypeInf:DataTermsFold} are as follows:
+\begin{itemize}
+  \item The type of the term being folded over should be a data type. This should be the same data type of which ${C_1,\ldots,C_m}$ are constructors. This relationship is represented by the equation:
+  \begin{align*}
+   T_0 = D(A_1^\prime,\ldots,A_k^\prime)
+  \end{align*}
+  \item The output type of the {\sf case} term is the type of the terms ${t_1,\ldots,t_n}$. Thus, in a well formed {\sf fold} expression the types of all these terms ${t_1,\ldots,t_n}$ should be the same.
+  \item The type ${F_{ij}}$ of the term ${x_{ij}}$, which is the ${j^{th}}$ argument of the constructor ${C_i}$, is given by the following equation:
+  \begin{align*}
+  F_{ij}~=~T_{ij}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big]
+  \end{align*}
+  where ${T_{ij}}$ is the type expression corresponding to ${x_{ij}}$ in the data definition ${D}$.
+
+  \item ${E_1,\ldots,E_m}$ are respectively the type equations generated for the terms ${t_1,\ldots,t_m}$ in the context expanded by the variables associated with the respective constructors in the {\sf fold} term. 
+  \item ${E_0}$ represents the term ${t}$ which is being folded over.
+\end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% ---------------------------------------------------
+% -----------------------Record----------------------
+% ---------------------------------------------------
+\subsection {Codata Type Terms (record, product, destructor and unfold Terms)}
+{\sf record, product, destructor} and {\sf unfold} are the sequential MPL terms that work on codata types. Section describes a codata type declaration in MPL and Sections through respectively describe the typing rules for {\sf record, product, destructor} and {\sf unfold} term.
+
+\subsection {Codata Type Declaration}\label{STypeInfer:CodataDefn}
+Consider a codata type ${C(A_1,\ldots,A_k)}$ having destructors ${D_1,\ldots,D_m}$ defined below: 
+\begin{align*} 
+~codata~ Z ~\to~ C(A_1,\ldots,A_k) =
+ & ~~ D_1 : T_{11},\ldots,~~ T_{1a},~Z ~~~\to ~~~ P_1 \\
+ & ~~~~ \vdots \hskip 5em \vdots \hskip 5em \vdots \\ 
+ & ~~ D_m : T_{m1},\ldots, T_{mn},~Z ~~\to ~~~ P_m
+\end{align*}
+In the codata type definition above:
+\begin{itemize}
+  \item The codata type ${C(A_1,\ldots,A_k)}$ is polymorphic in type variables \{${A_1,\ldots,A_k}$\}. ${Z}$ is called a state variable. The union of all the type variables used in the different destructors of the codata type is \{${Z,A_1,\ldots,A_k}$\}
+  \item Destructor ${D_1}$ takes {\bf ``a''} number of input terms of types ${T_{11},\ldots,T_{1a}}$ respectively.
+  \item ${T_{ij}}$ is a type expression such that:
+\begin{align*}
+Type~Var~(T_{ij})~~\subseteq~~ \{Z,A_1,\ldots,A_k\}
+\end{align*}
+\item The type expression ${P_i}$ is the output type of destructor ${D_i}$ such that:
+\begin{align*}
+Type~Var~(P_{i})~~\subseteq~~ \{Z,A_1,\ldots,A_k\}
+\end{align*}
+
+\item For a destructor ${D_f}$, of the codata type ${C}$, which takes {\bf ``g''} number of inputs:
+\begin{itemize}
+  \item the type of the {\sf unfold} function corresponding to that constructor is directly given by the type expression corresponding to the destructor in the codata definition which is:
+  \begin{align*}
+    T_{f1},\ldots,T_{fg}~\to~Z
+  \end{align*}
+  \item the type of the destructor ${D_f}$ is given by:
+  \begin{align*}
+    (T_{f1},\ldots,T_{fg}~\to~Z)~~\Big[C(A_1,\ldots,A_k)/Z\Big]
+  \end{align*}
+  The above representation means that in the type expression ${T_{f1},\ldots,T_{fg}~\to~Z}$, the type variable ${Z}$ is substituted with ${C(A_1,\ldots,A_k)}$.
+\end{itemize}
+\end{itemize}
+As in the case of data type definition, the codata type definition is $\alpha$-renamed with fresh variables to avoid any naming conflicts when elements of codata definitons are used in the type inference rules.
+~~\\~~\\ 
+The below representation means that in the type expression ${T_{ij}}$, the type variables ${Z,A_1,\ldots,A_k}$ have been replaced with fresh variables ${Z^\prime,A_1^\prime,\ldots,A_k^\prime}$ respectively.
+\begin{align*}
+T_{ij}~[Z^\prime/Z,A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k]
+\end{align*}
+
+\subsubsection {record and product Term}
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline \\
+\begin{minipage}{6in}
+{
+\infer [\rm rec] {
+    \begin {array}[c]{l}      
+         \Gamma \vdash 
+         \rec 
+          {
+            \begin{array}[c]{lcl}
+              {D_1~:~x_{11},\ldots,x_{1a}} & \to & t_1 \\
+              ~\vdots & \vdots & \vdots \\
+              {D_m~:~x_{m1},\ldots,x_{mn}} & \to & t_m 
+            \end{array}          
+          }:T \\~~\\ \hskip 8em
+              \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_1,\ldots,T_m, \\
+                  F_{11},\ldots,F_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  F_{m1},\ldots,F_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T = C^\prime(A_1^\prime,\ldots,A_k^\prime)\\
+                  T_1 = P_1 \Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big],\\ 
+                  \qquad\qquad \vdots \\
+                  T_m = P_m \Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big],\\~~\\
+                  F_{11}= T_{11} \Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big] \\ 
+                  \qquad\qquad \vdots \\ 
+                  F_{1a}= T_{1a}\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]\\
+                  \qquad\qquad \vdots \\
+                  F_{m1}= T_{m1} \Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big] \\ 
+                  \qquad\qquad \vdots \\ 
+                  F_{mn}= T_{mn}\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]\\ 
+                  E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle  
+    \end {array}
+       }
+       {
+         \begin {array}[c]{lcll}
+         x_{11}:F_{11},\ldots,x_{1a}:F_{1a} & \vdash & t_1 : T_1
+         & \langle E_1 \rangle \\ 
+         \hskip 8em \vdots & & \vdots \\ 
+         x_{m1}:F_{m1},\ldots,x_{mn}:F_{mn} & \vdash & t_m : T_m
+         & \langle E_m \rangle
+         \end {array}
+       }
+}  
+\end {minipage} \\~~\\ \hline \hline \\~~\\
+\begin{minipage}{6in}
+{
+\infer [\rm prod]
+  {
+    \Gvdash (t_1,\ldots,t_n) : T 
+    ~~~ \bigg\langle \exists ~ T_1,\ldots,T_n~.~  
+                \begin
+                  {array}[c]{l} 
+                       T = (T_1,\ldots,T_n) \\ 
+                       ,E_1,\ldots,E_n
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gvdash t_1 : T_1 ~~ \langle E_1 \rangle &&
+   \ldots && \Gvdash t_n : T_n ~~ \langle E_n \rangle 
+  }
+}
+\end {minipage}
+\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for record and product}
+\label{STypeInf:DataTermsRulesRec}
+\end{center}
+\end{table}
+{\sf record} term forms a record for a codata type. The type of a {\sf record} of a codata type is that codata type. {\sf products} can be thought of as special syntax for records. Products allow the programmers to specify tuples in MPL without specifying the corresponding codata types and the projection functions.
+~~\\~~\\ 
+First row in Table provides the type inference rules for {\sf record} term. The noteworthy points in the typing rule of the {\sf record} term of codata type ${C(A_1,\ldots,A_k)}$ defined in Section \ref {STypeInfer:CodataDefn} are as follows:
+\begin{itemize}
+  \item The output type ${T}$ of a {\sf record} is the codata type to which the destructors used in the body of {\sf record} belong. This relationship is represented by the equation:
+  \begin{align*}
+    T~=~C(A_1^\prime,\ldots,A_k^\prime)
+  \end{align*}
+  where ${A_1^\prime,\ldots,A_k^\prime}$ are fresh variables used instead of ${A_1,\ldots,A_k}$.
+  \item The type ${T_i}$ of the term ${t_i}$, which corresponds to the destructor $D_i$ in the record, is found by replacing the state variable ${Z}$ with the name of the codata type ${C(A_1^\prime,\ldots,A_k^\prime)}$ in the type ${P_i}$. ${P_i}$ is the type expression corresponding to the term ${t_i}$ in the codata definition. This relationship is expressed by the equation:
+  \begin{align*}
+    T_i = P_i \Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]
+  \end{align*}
+where ${\big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ represents a list of substitutions to be made inside the type expression ${P_i}$.
+
+\item The type ${F_{ij}}$ of ${x_{ij}}$, which is the ${j^{th}}$ argument of the ${i^{th}}$ destructor of codata type ${C}$, is given by the following equation:
+\begin{align*}
+F_{ij}= T_{ij} \Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]
+\end{align*}
+where ${T_{ij}}$ is the type expression corresponding to the ${x_{ij}}$ in the codata type expression and ${\big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ represents a list of substitutions to be made inside the type expression ${T_{ij}}$.
+\item ${E_1,\ldots,E_m}$ are respectively the type equations generated for the terms ${t_1,\ldots,t_m}$ in the context expanded by the variables associated with the respective destructors of the {\sf record}. 
+\end{itemize}
+Second row in Table \ref {STypeInf:DataTermsRulesRec} 
+describes the type inference rule for the {\sf product} term. Product is an inbuilt type in MPL. ${(T_1,\ldots,T_n)}$ represents a product type which is the type of an ${n}$ tuple. In the table, ${E_1,\ldots,E_n}$ represent the sets of type equations associated with terms ${t_1,\ldots,t_n}$ respectively.
+
+
+\subsubsection {unfold Term}
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+\\
+\begin{minipage}{6in}
+{
+\infer [\rm unfold] {
+    \begin {array}[c]{l}
+         \Gamma \vdash 
+         \unfold 
+          {
+            \begin{array}[c]{lcl}
+              {C_1~:~x_{11},\ldots,x_{1a}} & \to & t_1 \\
+              \vdots & \vdots & \vdots \\
+              {C_m~:~x_{m1},\ldots,x_{mn}} & \to & t_n 
+            \end{array}          
+          }:T \\~~\\ \hskip 8em
+               \Bigg\langle
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  T_0,T_1,\ldots,T_m, \\
+                  F_{11},\ldots,F_{1a},\\
+                  \qquad \vdots \qquad\qquad .\\
+                  F_{m1},\ldots,F_{mn},\\
+                  A_1^{\prime},\ldots,A_k^{\prime} 
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                  T = C(A_1^\prime,\ldots,A_k^\prime),\\
+                  S_1 = T_0,\ldots,S_m = T_0,\\
+                  T_1 = P_1~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\ 
+                  T_m = P_m~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\                  
+                  F_{11}= T_{11}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{1a}= T_{1a}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{m1}= T_{m1}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  \qquad\qquad \vdots \\
+                  F_{mn}= T_{mn}~\Big[Z^\prime/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k \Big],\\
+                  E_0,E_1,E_2,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle 
+    \end {array} 
+       }
+       {
+         \begin {array}[c]{l}
+             \\~~\\
+             t:T_0 ~ \langle E_0 \rangle 
+         \end {array} && 
+             \begin {array} [c] {lcll}   
+                 x_{11}:F_{11},\ldots,x_{1a}:F_{1a}~,~s:S_1 & \vdash & t_1 : T_1          
+                 & \langle E_m \rangle \\
+                 \qquad \vdots & ~ \vdots & \qquad \vdots \\ 
+                 x_{m1}:F_{m1},\ldots,x_{mn}:F_{mn}~,~s:S_m & \vdash & t_m : T_m 
+                 & \langle E_1 \rangle 
+             \end {array}
+       }
+}
+\end {minipage} 
+
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rules for unfold term}
+\label{STypeInf:CodataTermsUnfold}
+\end{center}
+\end{table}
+{\sf unfold} is a constructive operation used to build codata types by unfolding over an initial value. The typing rule for {\sf unfold} has been described in Table \ref {STypeInf:CodataTermsUnfold}. A few noteworthy points about the type inference rule for 
+{\sf unfold} are as follows:
+\begin{itemize}
+  \item The output type ${T}$ of an {\sf unfold} term is the codata type to which the destructors used in the body of the {\sf unfold} term belong. This relationship is represented by the equation:
+  \begin{align*}
+    T~=~C(A_1^\prime,\ldots,A_k^\prime)
+  \end{align*}
+  where ${A_1^\prime,\ldots,A_k^\prime}$ are fresh variables.
+ \item ${E_1,\ldots,E_m}$ are respectively the type equations generated for the terms ${t_1,\ldots,t_m}$ in the context expanded by the variables associated with the respective destructors along with the variable ${s}$ which represents the state.  
+ \item The type of the state variable ${s}$ should be the same as the type of the value being unfolded.
+ \item ${E_0}$ represents the set of the type equations generated for the the term ${t}$ being unfolded.
+ \item The type $T_i$ of the term ${t_i}$ corresponding to the destructor $D_i$ is given by:
+   \begin{align*}
+    T_i = P_i \Big[Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]
+  \end{align*}
+where ${P_i}$ is the type expression associated with the term ${t_i}$ corresponding to destructor ${D_i}$ in the codata definition ${C}$ and ${Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ represents a list of substitutions to be made inside the type expression ${P_i}$. 
+\item The type ${F_{ij}}$ of ${x_{ij}}$, which is the ${j^{th}}$ argument of the ${i^{th}}$ destructor of codata type ${C}$, is given by the following equation:
+\begin{align*}
+F_{ij}= T_{ij} \Big[Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]
+\end{align*}
+where ${T_{ij}}$ is the type expression corresponding to ${x_{ij}}$ in the codata type expression and ${\big[Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ represents a list of substitutions to be made inside the type expression ${T_{ij}}$.
+\end{itemize}
+
+
+\subsubsection {destructor Term}
+{\sf destructor} destructs a record of a codata type with a destructor of that codata type to get a value. The value obtained is the the term corresponding to that destructor in the record.
+~~\\~~\\ 
+Table \ref {STypeInf:CodataTermsDest} describes 
+the typing rule for the {\sf destructor} term. A few noteworthy points about the type inference rule for a {\sf destructor} term of codata type ${C}$ (defined in Section \ref {STypeInfer:CodataDefn}) are as below:
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+\\
+\begin{minipage}{6in}
+{
+\infer [\rm dest]
+  { 
+   \begin {array}[c]{l}
+    {
+      \Gamma \vdash \dest (D_i,[a_{1},\ldots,a_{j}])
+             ~~\Bigg(
+             \rec 
+              {
+                \begin{array}[c]{lcl}
+                  \vdots & \vdots & \vdots \\
+                  {D_i~x_{i1},\ldots,x_{ij}} & \to & t_i \\
+                  \vdots & \vdots & \vdots \\
+                \end{array}          
+              }\Bigg):T   
+    }\\~~\\
+    {
+      \hskip 8em 
+      \Bigg\langle
+          \exists \,
+          \begin
+            {array}[c]{l}
+            T_0,T_1,\ldots,T_j, \\
+            F_1,\ldots,F_j,\\
+            A_1^{\prime},\ldots,A_n^{\prime}~~~~ .
+          \end{array}
+          \begin
+            {array}[c]{l} 
+            T = T_0,\\ 
+            T_0 = P_{i}\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k \Big],\\
+            T_1 = S_1,\ldots,T_j = S_j\\
+            F_1 = T_{i1}~\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k \Big],\\ 
+            \qquad \qquad \qquad \vdots \\
+            F_j = T_{ij}~\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k \Big],\\
+            E_0,E_1,\ldots,E_j
+          \end{array} 
+      \Bigg\rangle 
+    }
+    \end{array}  
+  } 
+  { 
+    \begin {array} [c] {l}
+    \Gamma \vdash a_{1}:T_1 ~~~\langle E_{i1} \rangle \\ 
+    \hskip 5em \vdots \\ 
+    \Gamma \vdash a_{j}:T_j ~~~\langle E_{ij} \rangle 
+    \end {array} &&
+    \begin {array}[c]{l}
+      \\~~\\
+      \Gamma, x_{i1}:F_1,\ldots,x_{ij}:F_j \vdash t_i:T_0 
+      ~~~ \langle E_0 \rangle
+    \end {array}
+  }~~\\ 
+}
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rules for destructor term}
+\label{STypeInf:CodataTermsDest}
+\end{center}
+\end{table}
+\begin{itemize}
+  \item {\sf destructor} takes the following inputs:
+   \begin{itemize}
+     \item destructor ${D_i}$ with its arguments ${a_1,\ldots,a_j}$ and 
+     \item the record of the same codata type of which ${D_i}$ is a destructor.
+   \end{itemize}
+  \item The output type ${T}$ of a destructor ${D_i}$ is the same as the type ${T_0}$ of the term ${t_i}$. ${t_i}$ is the term corresponding to the branch of destructor ${D_i}$ in the record passed as the argument to the {\sf destructor} term. The type ${T_0}$ is obtained by the below equation:
+  \begin{align*}
+   T_0 = P_{i}\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k \Big]
+  \end{align*}
+  where ${P_i}$ is the type expression associated with the term ${t_i}$ corresponding to destructor ${D_i}$ in the codata definition ${C}$ and ${\big[Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ represents a list of substitutions to be made inside the type expression ${P_i}$. 
+  \item ${E_0}$ is the set of type equations associated with the term $t_i$ in the context expanded by the variables associated with the branch of destructor ${D_i}$.
+
+\item The type ${F_{j}}$ of ${x_{ij}}$, which is the ${j^{th}}$ argument of the ${i^{th}}$ destructor of codata type ${C}$, is given by the following equation:
+\begin{align*}
+F_{j}= T_{ij} \Big[Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]
+\end{align*}
+where ${T_{ij}}$ is the type expression corresponding to ${x_{ij}}$ in the codata type definition and ${\big[Z^\prime/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ represents a list of substitutions to be made inside the type expression ${T_{ij}}$.
+\end{itemize}
+
+\subsection {Other Terms}
+These are the remaining sequential MPL term. These include {\sf variables, constants, function call, if-then-else, switch} and {\sf where}. Sections \ref {STypeInf:SectVar} through \ref {STypeInf:switch} describe the typing rules for the above mentioned terms.
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+Variables \\
+\hline
+\\~~\\
+\begin{minipage}{2in}
+{
+\infer [\rm variable]
+  {
+    x:P , \Gamma \vdash x : T  
+    ~~~ \bigg\langle T = P
+        \bigg\rangle 
+  }
+  { 
+  }
+}
+\end {minipage}
+~~\\~~\\
+\hline 
+Constants
+~~\\
+\hline 
+~~\\~~\\
+\begin{minipage}{2in}
+{
+\infer [\rm int]
+  {
+    \Gamma \vdash ~n : T  
+    ~~~ \bigg\langle T = Int 
+        \bigg\rangle 
+  }
+  { 
+    \Gamma \vdash n:Int
+  }~~\\~~\\
+
+\infer [\rm double]
+  {
+    \Gamma \vdash ~n : T  
+    ~~~ \bigg\langle T = Double 
+        \bigg\rangle 
+  }
+  { 
+    \Gamma \vdash n : Double
+  }~~\\~~\\
+
+\infer [\rm char]
+  {
+    \Gamma \vdash ~n : T  
+    ~~~ \bigg\langle T = Char 
+        \bigg\rangle 
+  }
+  { 
+    \Gamma \vdash n : Char
+  }~~\\~~\\
+
+}
+\end {minipage}
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for variables and constants}
+\label{STypeInf:VarConst}
+\end{center}
+\end{table}
+
+\subsubsection {variables}\label{STypeInf:SectVar}
+The type inference rule for {\sf variables} is provided in the first row of Table \ref {STypeInf:VarConst}. The {\sf variable} being type inferred should be present in the context ${\Gamma}$. In Table \ref {STypeInf:VarConst}, the type ${T}$ of a {\sf variable} term is equated with the type ${P}$ of that {\sf variable} obtained from the context.
+
+\subsubsection {constants}
+The type inference rules for {\sf constants} are provided in the second row of Table \ref {STypeInf:VarConst}. Constants are particularly easy to type infer as different constants are represented with different constructors in the abstract syntax tree of MPL.
+
+\subsubsection{function call}
+
+Function call is used to call an already defined function with some arguments.
+~~\\~~\\ 
+Consider a function ${f}$ which takes ${m}$ inputs of types ${S_1,\ldots,S_m}$. The output type of the function is ${S}$. ${A_1,~ \ldots,~A_k}$ represent the union of all the type variables in the input and the output types.
+\begin{align*} 
+ & f:\forall A_1,~ \ldots,~A_k.~S_1,\ldots,S_m \to S 
+\end{align*}
+The type of a function definition is inserted in a data structure called symbol table which is an important data structure used during type inference process. When a function call is made, the type of the function being called can be looked up from the symbol table.
+~~\\~~\\ 
+The output and input types are $\alpha$-renamed before using them  in the type equations to avoid variable name clashes between variables used in the input and output types of the function definition obtained from the symbol table and the variables which are already used in the type equation. The $\alpha$-renamed input and output types are as below:
+\begin{align*}
+ & ~~ S_i~\Big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k \Big] ~~~ \{~ 1~ \leq~ i~ \leq m\} \\
+ & ~~ S~\Big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k \Big]
+ \end{align*}
+ In the representation above ${A_1^\prime,\ldots,A_k^\prime}$ are the fresh type variables used instead of  ${A_1,\ldots,A_k}$ respectively. ${S~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k \big]}$ represents a list of substitutions such that ${A_1^\prime}$ is substituted for ${A_1}$, ${A_2^\prime}$ for ${A_2^\prime}$ and so on inside the body of the type expression ${S}$.
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+\\
+\begin{minipage}{6in}
+{
+\infer [\rm call]
+  {
+    \Gamma \vdash {\sf f ~(t_1,\ldots,t_m)}
+   : T  ~~
+       \Bigg\langle 
+                \exists \,
+                \begin
+                  {array}[c]{l}
+                  A_1^{\prime},\ldots,A_k^{\prime},\\
+                  T_1,\ldots,T_m ~~.~
+                \end{array}
+                \begin {array}[c]{l} 
+                   T = S~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big],\\
+                   T_1 = S_{1}~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big],\\ 
+                   \qquad \qquad \vdots,\\ 
+                   T_m = S_{m}~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big] ,\\
+                   E_1,\ldots,E_m
+                \end{array} 
+            \Bigg\rangle 
+  }
+  { \Gvdash  t_1 : T_1 ~~\langle E_1 \rangle && \ldots &&
+    \Gvdash  t_n : T_n ~~\langle E_n \rangle 
+  }
+}
+\end {minipage} 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for function call}
+\label{STypeInf:FunCall}
+\end{center}
+\end{table}
+
+
+ Typing rule for {\sf function call} is provided in Table \ref {STypeInf:FunCall}. Important points about the type inference rule for {\sf function call} in Table \ref {STypeInf:FunCall} are as below:
+\begin{itemize}
+   \item The type of a function call is the output type of the function type of the function being called. This relationship is represented by the following equation in the inference rule:
+   \begin{align*}
+   T = S~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]
+   \end{align*}
+   where ${\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]}$ are the list of substitutions used to $\alpha$-rename the old variables.
+   \item The type of the various input arguments ${T_1,\ldots,T_n}$ of the function call can be  deduced from the input types of the function being called. This relationship is given by the following equations in the inference rule:
+   \begin{align*}
+         &T_1 = S_{1}~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big],\\ 
+         &\qquad\qquad \vdots\\ 
+         &T_m = S_{m}~\big[A_1^\prime/A_1,\ldots,A_k^\prime/A_k\big]   
+   \end{align*}
+ \end{itemize}
+
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+
+if-then-else~ term
+~~\\
+\hline 
+~~\\~~\\~~\\
+\begin{minipage}{4in}
+{
+\infer [\rm if]
+  {
+    \Gvdash
+    {\sf if ~ t_1 ~then~ t_2 ~else ~t_3} : T 
+    ~~~ \bigg\langle \exists ~ T_1,T_2,T_3~.~  
+                \begin
+                  {array}[c]{l} 
+                       T_1 = Bool, \\
+                       T_2 = T,T_3 = T, \\ 
+                       E_1,E_2,E_3
+                \end {array}       
+        \bigg\rangle 
+  }
+  { 
+   \Gvdash t_1 : T_1 ~~ \langle E_1 \rangle &&
+   \Gvdash t_2 : T_2 ~~ \langle E_2 \rangle &&
+   \Gvdash t_3 : T_3 ~~ \langle E_3 \rangle
+  }
+}
+\end {minipage} 
+~~\\~~\\
+\hline 
+switch~ term
+~~\\
+\hline 
+~~\\~~\\
+\begin{minipage}{4in}
+{
+\infer [\rm switch]
+  {
+    \Gvdash \switch  
+          {
+            \begin{array}[c]{lcl}
+              p_1 & = & t_1 \\
+              \vdots & \vdots & \vdots \\
+              p_m & = & t_m \\
+              \texttt{default} & = & t_{m+1} 
+            \end{array}          
+          }:T 
+       ~~~\Bigg\langle 
+               \exists  
+                      \begin
+                        {array}[c]{l}
+                        T_1,\ldots,T_{m+1},\\
+                        P_1,\ldots,P_m ~~.~
+                      \end{array}
+                  \begin
+                    {array}[c]{l} 
+                         P_1 = Bool,\ldots,P_m = Bool \\
+                         T_1 = T,\ldots,T_{m+1} = T,\\ 
+                         E_1,\ldots,E_{m+1},\\ 
+                         E_{p,1},\ldots,E_{p,m}
+                  \end {array}       
+          \Bigg\rangle 
+  }
+  { 
+   \begin {array}[c]{l}
+   \Gamma \vdash p_1 : P_1 ~~~ \langle E_{p,1} \rangle \\
+   \hskip 2em \vdots \\ 
+   \Gamma \vdash p_{m} : P_{m} ~~ \langle E_{p,m} \rangle
+   \end {array} &&&
+   \begin {array}[c]{l}
+   \Gamma \vdash t_1 : T_1 ~~~ \langle E_1 \rangle \\
+   \hskip 2em \vdots \\ 
+   \Gamma \vdash t_{m+1} : T_{m+1} ~~ \langle E_{m+1} \rangle
+   \end {array}
+  }
+}
+\end {minipage} 
+\\~~\\
+\hline
+where~ term \\
+\hline
+\\~~\\
+\begin{minipage}{4in}
+{
+\infer [\rm where]
+  {
+    \Gvdash \letS 
+          {t} 
+          {
+            \begin{array}[c]{lcl}
+              \hskip 3em {\sf fdefn_1},\\ 
+              \hskip 4em\vdots\\
+              \hskip 3em {\sf fdefn_n},\\ 
+              x_1 & = & t_1 \\
+              \vdots & \vdots & \vdots \\
+              x_m & = & t_m 
+            \end{array}          
+          }:T 
+       ~~~\Bigg\langle 
+               \exists  
+                      \begin
+                        {array}[c]{l}
+                        T_0,\ldots,T_m,\\
+                        S_1,\ldots,S_m ~~.~
+                      \end{array}
+                  \begin
+                    {array}[c]{l} 
+                         T = T_0, \\
+                         S_1 = T_1,\ldots,S_m = T_m,\\ 
+                         E_0,E_1,\ldots,E_m
+                  \end {array}       
+          \Bigg\rangle 
+  }
+  { 
+   \begin {array}[c]{l}
+   \Gamma \vdash t_1 : T_1 ~~~ \langle E_1 \rangle \\
+   \hskip 2em \vdots \\ 
+   \Gamma \vdash t_m : T_m ~~ \langle E_m \rangle
+   \end {array} &&
+   \begin {array} [c]{l}
+   \\~~\\ 
+   \Gamma,x_1:S_1,\ldots x_m:S_m \vdash t:T_0 ~~ \langle E_0 \rangle
+   \end {array}
+  }
+}
+\end {minipage} 
+~~\\~~\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for if-then-else, switch and where terms}
+\label{STypeInf:IfThenElse}
+\end{center}
+\end{table}
+
+\subsubsection {if-then-else}
+The type inference rule for an {\sf if} term is described in the first row of Table \ref {STypeInf:IfThenElse}.
+~~\\~~\\
+{\sf if} term takes three terms as arguments, the first argument evaluates to a boolean value and of the remaining two terms, one is associated with the {\bf then} clause and the other is associated with the {\bf else} clause. Depending on the boolean value being {\bf True} or {\bf False}, first or the second term is executed. The output type of the {\sf if} statement is the type of the terms associated with the {\bf then} or the {\bf else} clause. A correctly typed {\sf if} statement will have the two terms of the same type. 
+\subsubsection {switch}\label{STypeInf:switch}
+A {\sf switch} term (boolean guard) consists of a list of pair of terms. The first term of each pair evaluates to a boolean value. The first pair for which the first term of the pair evaluates to {\bf True}, the second element of that pair which is again a term is executed.
+~~\\~~\\ 
+The type inference rule for {\sf switch} is provided in the second row of Table \ref {STypeInf:IfThenElse}. A few noteworthy points about the type inference rule for {\sf switch} provided in Table \ref {STypeInf:IfThenElse} are as follows:
+\begin{itemize}
+  \item The type of the first terms of each pair of the list of ${m}$ pairs, represented by type variables ${~P_1,\ldots,P_m~}$, associated with the {\sf switch} term is {\bf Bool} and is given by the below equation:
+  \begin{align*}
+    P_1=Bool,\ldots,P_m = Bool
+  \end{align*}
+ \item The output type of the {\sf switch} term given by a type variable ${T}$ is the type of the second element of a pair from the list of pairs associated with the {\sf switch} term. In a well typed {\sf switch} term, the type of the second elements of each pair from the pair list is the same. The equation expressing this relationship is:
+   \begin{align*}
+    T_i= T,\ldots,T_m = T
+  \end{align*}
+  where ${T_1,\ldots,T_m}$ are respectively the types associated with the second elements of ${m+1}$ pairs of the {\sf switch} term.
+  \item ${E_{p,1},\ldots,E_{p,m}}$ represent the set of type equations generated corresponding to the first terms of the list of pairs.
+  \item ${E_1,\ldots,E_{m+1}}$ represent the set of type equations generated corresponding to the second terms of the list of pairs.
+\end{itemize}
+
+\subsubsection {where}
+{\sf where} term allows programmers to define local constants and local functions. The third row in Table \ref {STypeInf:IfThenElse} represents the type inference rules for the {\sf where} term.
+~~\\~~\\ 
+A few noteworthy points about the type inference rule for the {\sf where} term in Table \ref {STypeInf:IfThenElse} are as follows:
+\begin{itemize}
+  \item The local functions represented by ${fdefn_1,\ldots,fdefn_n}$ in the type equations are type inferred first. The inferred types of the local functions are then added to the symbol table which can be looked up. The scope of these functions is just the {\sf where} term.
+  \item The output type ${T}$ of a {\sf where} term is the type of the term ${t}$ which is represented by ${T_0}$ in the type inference rule for {\sf where}.
+  \item ${E_0}$ is the set of equations generated by the term ${t}$ in the context expanded by the local constants ${x_1,\ldots,x_m}$.
+  \item ${E_1,\ldots,E_m}$ are the set of equations respectively associated with the terms ${t_1,\ldots,t_m}$ in the {\bf where} clause of the {\sf where} term.
+\end{itemize}
+
+\section {Generating Type Equations for a Pattern Phrase} \label{STypeInf:SectPattPhrase}
+A function body is made up of a list of pattern phrases. Recall that a pattern phrase is a list of patterns and the corresponding term in a function definition. This section deals with the generation of type equations for a pattern phrase.
+~~\\~~\\ 
+Table \ref {STypeInf:pattTermPhrase} describes the type inference rule for a pattern phrase. Noteworthy points about the type inference rules provided in Table \ref {STypeInf:pattTermPhrase} are as follows:
+\begin{itemize}
+  \item The type equation generation for the pattern phrase ${\sf (p_1,\ldots,p_n~\to~ t)}$ is started with an empty context reprsented by ${\{~\}}$.
+  \item Type inference process of a pattern enhances the context that it takes as input in addition to generating the type equations. In this regard, patterns are different from {\sf terms} which only generate type equations using the given context. Thus type inference for pattern ${p_i}$ results in a new context ${\Gamma_i}$ and a set of equations ${E_i}$ represented as ${\big\langle \Gamma_i,E_i \big\rangle}$.
+  \item The term ${t}$ of the pattern phrase is type inferred in the final context generated by the union of the contexts obtained from each pattern in the pattern phrase. For pattern ${p_1,\ldots,p_n}$, the final context in which the term ${t}$ is type inferred is represented as ${\Gamma_1~\cup\ldots\cup~\Gamma_n}$.
+  \item ${E}$ is the set of equations generated for term ${t}$.
+  \item if ${T_1,\ldots,T_n}$ are the types corresponding to the patterns ${p_1,\ldots,p_n}$ respectively and ${T_0}$ is the type of the term ${t}$, then the type of the pattern phrase represented by ${T}$ is given by the equation:
+  \begin{align*}
+  T = T_1,\ldots,T_n~\to~T_0
+  \end{align*}
+  Symbol ${\to}$ in the type expression above shows that ${T}$ is a function type.
+\end{itemize}
+The type equation generation scheme for a pattern phrase discussed above requires the types of the patterns in the pattern phrase. The type inference rules for various patterns have been discussed in Section \ref {STypeInf:patternSect}.
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+\\
+\begin{minipage}{2in}
+{
+\infer [\rm pattPhr]
+  {
+    \{~\}~ \vdash ~ {\sf (p_1,\ldots,p_n~\to~ t~)}:T  
+    ~~~ \bigg\langle 
+           \exists~T_0,\ldots,T_n. 
+                 \begin {array}[c]{l}
+                 T = T_1,\ldots,T_n~\to~T_0,\\
+                 E,E_1,\ldots,E_n
+                 \end{array}
+        \bigg\rangle 
+  }
+  { 
+   \begin {array}[c]{l}
+   \{~\} ~\vdash ~ p_{1} : T_1 ~~~ \Big\langle \Gamma_1, E_1 \Big\rangle \\
+   \hskip 4em \vdots \\ 
+   \{~\} ~ \vdash p_{n} ~ : T_{n} ~~ \Big\langle \Gamma_n, E_n \Big\rangle
+   \end {array} &&&
+   \begin {array}[c]{l}
+   \\~~\\
+   \Gamma_1~\cup\ldots\cup~\Gamma_n ~\vdash~ t~:~T_0 ~~ \Big\langle E \Big\rangle
+   \end {array}
+  }
+}
+\end {minipage}
+~~\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for pattern phrase}
+\label{STypeInf:pattTermPhrase}
+\end{center}
+\end{table}
+
+\subsection {Generating Type Equations for Patterns} \label{STypeInf:patternSect}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+Don't~Care~ Pattern \\
+\hline
+
+\\~~\\
+
+\begin{minipage}{4in}
+{
+\infer [\rm Don't~Care.~patt]
+  {
+    \{~\} \vdash {\sf  \underline{\hspace{.8em}}} : T  
+    ~~~ \bigg\langle \{\} , \{\} 
+        \bigg\rangle 
+  }
+  { 
+  }
+}
+\end {minipage} 
+~~\\~~\\~~\\
+\hline 
+Variable~ Pattern \\
+\hline
+
+\\~~\\
+
+\begin{minipage}{4in}
+{
+\infer [\rm var.~patt]
+  {
+    \{~\} \vdash {\sf VPatt~~x} : T  
+    ~~~ \bigg\langle \{x:T\} , \{\} 
+        \bigg\rangle 
+  }
+  { 
+  }
+}
+\end {minipage} 
+~~\\~~\\~~\\
+\hline 
+Constructor~ Pattern
+~~\\
+\hline 
+~~\\
+\begin{minipage}{4in}
+{
+\infer [\rm cons.~~patt]
+  {
+   \begin {array}[c]{l} 
+    \{~\}~\vdash
+    {\sf CPatt~~(C_i,[p_1,\ldots,p_j])} : T 
+    \\~~\\ 
+    \hskip 1em \Bigg\langle 
+          \begin {array}[c]{l}
+            \Gamma_1,\ldots,\Gamma_m~, 
+             \Big\{
+             \exists 
+                \begin {array}[c]{l}    
+                A_1,\ldots,A_k~~.~ \\
+                T_1,\ldots,T_j
+                \end{array}
+                \begin
+                  {array}[c]{l} 
+                       T = D(A_1^\prime,\ldots,A_k^\prime), \\
+                       T_1 = T_{i1} \Big[D(A_1,\ldots,A_k/Z)~,~A_1^\prime/A_1,A_k^\prime/A_k\Big],\\
+                       \hskip 4em \vdots \\
+                       T_j = T_{ij} \Big[D(A_1,\ldots,A_k/Z)~,~A_1^\prime/A_1,A_k^\prime/A_k\Big],\\
+                       E_1,\ldots,E_j
+                \end {array} 
+              \Big\}
+          \end{array}      
+        \Bigg\rangle 
+    \end{array}
+  }
+  { 
+   \begin {array}[c]{l}
+   \{~\} \vdash p_1 : T_1 \qquad \Big\langle\Gamma_1,E_1 \Big\rangle \\ 
+   \hskip 4em \vdots \\
+   \{~\} \vdash p_j : T_j \qquad \Big\langle\Gamma_j, E_j \Big\rangle  
+   \end{array}
+  }
+}
+\end {minipage} 
+~~\\~~\\
+\hline 
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for don't care, variable, constructor patterns}
+\label{STypeInf:Pattrules0}
+\end{center}
+\end{table}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|}
+\hline 
+Record~ Pattern
+~~\\
+\hline 
+~~\\
+\begin{minipage}{4in}
+{
+\infer [\rm rec.~patt]
+  {
+   \begin {array}[c]{l} 
+    \{~\}~\vdash~
+       \rPatt
+          {
+            \begin{array}[c]{lcl}
+              D_1 & : & p_1 \\
+              ~\vdots & ~~ & \vdots \\
+              D_m  & : & p_m 
+            \end{array}          
+          }:T \\
+ \hskip 1em \Bigg\langle 
+          \begin {array}[c]{l}
+           \Gamma_1,\ldots,\Gamma_m~, 
+             \Big\{
+             \exists 
+               \begin {array}[c]{l}
+                ~ A_1,\ldots,A_k,\\ 
+                ~ T_1,\ldots,T_m ~~~.
+             \end{array}   
+                \begin
+                  {array}[c]{l} 
+                       T = C(A_1^\prime,\ldots,A_k^\prime), \\
+                       T_1 = P_1 ~\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_1^\prime/A_k\Big],\\
+                       \hskip 4em \vdots\\
+                       T_m = P_m ~\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_1^\prime/A_k\Big],\\
+                       E_1,\ldots,E_m
+                \end {array} 
+            \Big\}
+          \end{array}      
+        \Bigg\rangle 
+    \end{array}
+  }
+  { 
+   \begin {array}[c]{l}
+   \{ ~\} \vdash p_1 : T_1 ~~~ \Big\langle \Gamma_1,E_1 \Big\rangle \\
+   \hskip 5em \vdots \\ 
+   \{ ~\} \vdash p_{m} : T_{m} ~~ \Big\langle \Gamma_m,E_m \Big\rangle 
+   \end {array} 
+  }
+}
+\end {minipage} 
+~~\\~~\\~~\\
+\hline 
+Product~ Pattern
+~~\\
+\hline 
+~~\\~~\\
+\begin{minipage}{4in}
+{
+\infer [\rm prod.~~patt]
+  {
+   \begin {array}[c]{l} 
+    \{~\}~\vdash~
+    {\sf PPatt~~(p_1,\ldots,p_j)} : T 
+    \\~~\\ 
+    \hskip 4em \Bigg\langle 
+          \begin {array}[c]{l}
+            \Gamma_1,\ldots,\Gamma_m~, 
+             \Big\{
+             \exists 
+               \begin {array}[c]{l}
+                ~ A_1,\ldots,A_k,\\ 
+                ~ T_1,\ldots,T_j ~~~.
+             \end{array}  
+                \begin
+                  {array}[c]{l} 
+                       T = (T_1,\ldots,T_j), \\
+                       E_1,\ldots,E_j
+                \end {array} 
+              \Big\}
+          \end{array}      
+        \Bigg\rangle 
+    \end{array}
+  }
+  { 
+   \begin {array}[c]{l}
+   \{~\} \vdash p_1 : T_1 \qquad \Big\langle\Gamma_1,E_1 \Big\rangle \\ 
+   \hskip 4em \vdots \\
+   \{~\} \vdash p_j : T_j \qquad \Big\langle\Gamma_j, E_j \Big\rangle  
+   \end{array}
+  }
+}
+\end {minipage}
+~~\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for record and product patterns}
+\label{STypeInf:Pattrules1}
+\end{center}
+\end{table}
+
+
+MPL provides following kinds of patterns:
+\begin{itemize}
+  \item Don't Care Pattern
+  \item Variable Pattern
+  \item Constructor Pattern
+  \item Record Pattern
+  \item Product Pattern
+\end{itemize}
+In the following sections, the type inference rules for various patterns are discussed. The type inference process for the various patterns yields a context in addition to type equations. The contexts yielded by the various patterns of a pattern phrase are then unioned to come up with the context in which the corresponding term of that pattern phrase is type inferred. The type inference rules for various patterns have been listed in Table \ref{STypeInf:Pattrules0} and \ref{STypeInf:Pattrules1}.
+
+\subsubsection {Don't Care Patterns}
+Don't care pattern is used in a pattern phrase when a particular pattern is not relevant for the corresponding term of that pattern phrase. The first row of \ref {STypeInf:Pattrules0} provides the typing rule for the don't care pattern.
+~~\\~~\\ 
+As row one of Table \ref{STypeInf:Pattrules0} shows, the don't care patterns don't contribute anything to either the context or to the set of type equations.
+
+\subsubsection {Variable Patterns}
+In a pattern phrase, the variables introduced by the variable patterns can be used inside the body of the term corresponding to that pattern phrase.
+~~\\~~\\ 
+As can be seen in the second row of Table \ref{STypeInf:Pattrules0}, a variable pattern extends the context by adding the variable of the pattern with a type variable in the context. However, a variable pattern doesn't add anything to the set of equations.
+
+\subsubsection {Constructor Patterns}
+Constructor patterns can be used to pattern match on the constructors of a data type. The third row of Table \ref{STypeInf:Pattrules0} describe the typing rule for a constructor pattern.
+~~\\~~\\ 
+For the purposes of this discussion assume that the constructors used in the constructor pattern belong to the data type ${D(A_1,\ldots,A_k)}$ defined in Section \ref {sTypeInfer:dataDef}. ${D(A_1,\ldots,A_k)}$  has ${m}$ constructors from ${C_1,\ldots,C_m}$. In the constructor pattern in the third of Table \ref{STypeInf:Pattrules0}, constructor ${C_i}$ is used which takes ${j}$ number of arguments.
+~~\\~~\\
+A few noteworthy points about the type inference rule for constructor pattern of constructor ${C_i}$ provided in Table \ref {STypeInf:DataTermsRulesCons} are as follows:
+\begin{itemize}
+  \item ${\Gamma_1,\ldots,\Gamma_j}$ are the contexts associated with the arguments ${p_1,\ldots,p_j}$ of ${C_i}$ which are patterns themselves.
+  \item The type equations generated for the constructor pattern formed from constructor ${C_i}$ are the same as the type equations generated for the constructor term made up of constructor ${C_i}$.
+  \item The output type of a constructor pattern term is the data type of which it is a constructor. The equation corresponding to this relationship is:
+   \begin{align*}
+    T~=~D(A_1^{\prime},\ldots,A_k^{\prime})
+   \end{align*}
+   where ${A_1^{\prime},\ldots,A_k^{\prime}}$ are fresh variables used instead of the variables ${A_1,\ldots,A_k}$.
+    
+  \item The types of the various arguments of the constructor are the type expressions at the corresponding positions of that data constructor in the data definition with the state variable ${Z}$ substituted with ${D(A_1^{\prime},\ldots,A_k^{\prime})}$. The type ${T_j}$ of the $\mathbf {j^{th}}$ argument of constructor ${C_i}$ is given by:
+  \begin{align*}
+    T_j = T_{ij}~\big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k\big]
+  \end{align*}
+  where ${T_{ij}}$ is the type expression corresponding to the ${j^{th}}$ argument of the constructor ${C_i}$ in the data definition of ${D}$. Syntax ${T_{ij}~\big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k\big]}$ represents that in the body of type expression
+   ${T_{ij}}$, a list of substitutions $\big[D(A_1,\ldots,A_k)/Z~,~A_1^{\prime}/A_1,\ldots,A_k^{\prime}/A_k\big]$ are used. 
+
+  \item $E_1$, $\ldots$, $E_j$ are the type equations generated for the terms $t_1$, $\ldots$, $t_j$ respectively.
+ \end{itemize}
+
+\subsubsection {Record Pattern}
+One can pattern match on records of a first order codata type in MPL. 
+~~\\~~\\ 
+Consider a first order codata type ${C}$ defined below:
+\begin{align*} 
+~codata~ Z ~\to~ C(A_1,\ldots,A_k) =
+ & ~~ D_1 : ~Z ~~~\to ~~~ P_1 \\
+ & ~~~~ \vdots \hskip 3.8em \vdots \hskip 2em \vdots \\ 
+ & ~~ D_m : ~Z ~~\to ~~~ P_m
+\end{align*}
+In the codata type defintion above:
+\begin{itemize}
+  \item ${D_1,\ldots,D_m}$ are the destructors of the codata type ${C}$.
+  \item The codata type is polymorphic in type variables ${A_1,\ldots,A_k}$.
+  \item The type of a destructor $D_i$ is obtained by using the substitution ${\big[C(A_1,\ldots,A_k)/Z\big]}$ in the type expression ${Z~\to~P_i}$ represented as follows:
+  \begin{align*}
+   (Z~\to~P_i)~\big[C(A_1,\ldots,A_k)/Z\big]
+  \end{align*}
+  \item ${P_i}$ is a type expression such that:
+   \begin{align*}
+   Type~Var(P_i)~\subseteq \{Z,A_1,\ldots,A_k\}
+   \end{align*}
+  \item The following representation means that the type variables ${A_1,\ldots,A_k}$ of the type expression ${P_i}$ is renamed to fresh variable names ${A_1^\prime,\ldots,A_k^\prime}$:
+   \begin{align*}
+   P_i~[A_1^\prime/A_1,\ldots,A_k^\prime/A_k]
+   \end{align*} 
+\end{itemize}
+The type inference rule for record patterns is provided in the first row of Table \ref{STypeInf:Pattrules1}. A few noteworthy point about the type inference rule for record pattern provided in Table \ref{STypeInf:Pattrules1} are as follows:
+\begin{itemize}
+  \item ${\Gamma_1,\ldots,\Gamma_m}$ are the contexts associated with with the elements ${p_1,\ldots,p_m}$ respectively. ${p_1,\ldots,p_m}$ are the patterns associated with the destructors ${D_1,\ldots,D_m}$ of the codata type ${C}$ respectively.
+  \item The output type ${T}$ of a record pattern is the codata type of the which the given pattern is a record. This relationship is represented by the following equation:
+  \begin{align*}
+  T~=~C(A_1^\prime,\ldots,A_k^\prime)
+  \end{align*}
+  where ${A_1^\prime,\ldots,A_k^\prime}$ are fresh variables used in place of ${A_1,\ldots,A_k}$ respectively.
+  \item Type ${T_i}$ of the pattern ${p_i}$ corresponding to the destructor ${D_i}$ in the record is given by the following equation:
+  \begin{align*}
+  T_i~=~P_i\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]
+  \end{align*} 
+  In the equation above ${\Big[C(A_1,\ldots,A_k)/Z~,~A_1^\prime/A_1,\ldots,A_k^\prime/A_k\Big]}$ represents the list of substitutions to be made in the body of the type expression ${P_i}$.
+  \item ${E_1,\ldots,E_j}$ are the type equations generated for the patterns ${p_1,\ldots,p_j}$ respectively.
+\end{itemize}
+
+
+
+\subsubsection {Product Pattern}
+Product patterns consist of a tuple of patterns. The type inference rule for product patterns is specified in the second row of Table \ref{STypeInf:Pattrules1}.  
+~~\\~\\
+A few noteworthy points about the type inference rule for product patterns provided in Table \ref{STypeInf:Pattrules1} are as follows:
+\begin{itemize} 
+  \item ${\Gamma_1,\ldots,\Gamma_j}$ are the contexts associated with with the elements ${p_1,\ldots,p_j}$ of the product pattern respectively.
+  \item The output type of a product pattern is the product of the types of the invidual elements of the product pattern. This relationship is represented by the equation:
+  \begin{align*}
+   T = (T_1,\ldots,T_n)
+  \end{align*}
+  where ${(~)}$ represents the product type which is a built in type in MPL.
+  \item ${E_1,\ldots,E_j}$ are the type equations generated for the elements ${p_1,\ldots,p_j}$ of the product pattern respectively.
+\end{itemize}  
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+Function without an annotated type
+\\
+\hline \\~~\\
+\begin{minipage}{5in}
+{
+\infer [\rm fun]
+  {
+    \begin {array}[c]{l}
+    \{~\} ~\vdash ~{\sf fun~~f~=} \\ 
+      \hskip 5em 
+          \begin {array}[c]{l} 
+           (p_{1,1},\ldots,p_{1,n}~\to~ t_1~) \\  
+           \hskip 4em \vdots \hskip 6em :~T \\
+           (p_{m,1},\ldots,p_{m,n}~\to~ t_m~)   
+          \end{array}
+    ~~~ \bigg\langle 
+           \exists~T_1,\ldots,T_m. 
+                 \begin {array}[c]{l}
+                 T_1 = T,\ldots,T_m = T,\\
+                 E_1,\ldots,E_m
+                 \end{array}
+        \bigg\rangle 
+    \end{array}
+  }
+  { 
+   \begin {array}[c]{l}
+   \{~\}~\vdash (p_{1,1},\ldots,p_{1,n}~\to~ t_1~) : T_1 ~~~ \Big\langle E_1 \Big\rangle \\
+   \hskip 8em \vdots \\ 
+   \{~\}~\vdash (p_{m,1},\ldots,p_{m,n}~\to~ t_m~) : T_{m} ~~ \Big\langle E_m \Big\rangle
+   \end {array}
+  }
+}
+\end {minipage}
+\\~~\\~~\\ 
+\hline
+Function with an annotated type
+\\
+\hline \\~\\
+\begin{minipage}{5in}
+{
+\infer [\rm annot.~fun]
+  {
+    \begin {array}[c]{l}
+    \{~\} ~\vdash ~{\sf fun~~f~}:~\forall~A_1,\ldots,A_k~.~F~= \\ 
+      \hskip 5em 
+          \begin {array}[c]{l} 
+           (p_{1,1},\ldots,p_{1,n}~\to~ t_1~) \\  
+           \hskip 4em \vdots \hskip 7em :~T \\
+           (p_{m,1},\ldots,p_{m,n}~\to~ t_m~)   
+          \end{array} \\~~\\
+    \hskip 12em \bigg\langle 
+           \begin {array}[c]{l}
+           \forall~A_1^\prime,\ldots,A_k^\prime,\\
+           \exists~T \hskip 5em .~
+           \end{array} 
+                 \begin {array}[c]{l}
+                 T~=~F~[A_1^\prime/A_1,\ldots,A_k^\prime/A_k],\\
+                 E_{fun}
+                 \end{array}
+        \bigg\rangle 
+    \end{array}
+  }
+  { 
+    \begin {array}[c]{l}
+    \{~\} ~\vdash ~{\sf fun~~f~=} \\ 
+      \hskip 5em 
+          \begin {array}[c]{l} 
+           (p_{1,1},\ldots,p_{1,n}~\to~ t_1~) \\  
+           \hskip 4em \vdots \hskip 7em :~T \qquad\bigg \langle E_{fun} \bigg\rangle \\
+           (p_{m,1},\ldots,p_{m,n}~\to~ t_m~)   
+          \end{array} \\~~\\
+    \end{array}
+  }
+}
+\end {minipage}
+~~\\~~\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for Function Definitions}
+\label{STypeInf:FunBodyNoType}
+\end{center}
+\end{table}
+
+
+\section {Generating Type Equations for Function Definitions}
+Function definitions consist of a list of pattern phrases. Type inference rule for a pattern phrase has already been discussed in Section \ref{STypeInf:SectPattPhrase}. In Section \ref {STypeInf:FDefnNType}, the type inference rule for function defintions which consist of a list of pattern phrases is dicussed. MPL allows programmers to annotate a function with its expected type. Section \ref {STypeInf:FDefnYType} deals with how to use the annotated type for the type checking of the functions. Section \ref {STypeInf:FDefnMRec} describes the typing rule for mutually recursive function definitions.
+
+\subsection {Function Definitions Without an Annotated Type}\label{STypeInf:FDefnNType}
+
+First row of Table \ref {STypeInf:FunBodyNoType} provides the type inference rules for functions that don't have an annotated type. Noteworthy points about the type inference rule for function definitons without an annotated type provided in Table \ref {STypeInf:FunBodyNoType} are as follows:
+\begin{itemize} 
+  \item The types of different pattern phrases should be the same. This type is also the type of the function ${f}$. This relationship is expressed by the below equation:
+  \begin{align*}
+  T_1 = T,\ldots,T_m = T
+  \end{align*}
+where ${T_1,\ldots,T_m}$ are the types of the ${m}$ pattern phrases and ${T}$ is the type of the function ${f}$.
+  \item ${E_1,\ldots,E_m}$ represent the type equations respectively associated with the ${m}$ pattern phrases.
+\end{itemize}
+
+\subsection {Function Definitions With an Annotated Type}\label{STypeInf:FDefnYType}
+Second row of Table \ref {STypeInf:FunBodyNoType} describes type inference rule for a function that has been annotated with a type by the programmer. Description of the type inference rule for type annotated function definitions provided in Table \ref {STypeInf:FunBodyNoType} is as below:
+\begin{itemize}
+  \item The annotated type for function ${f}$ is shown as ${\forall~A_1,\ldots,A_k~.~F}$ in the type inference rule. Here ${F}$ is the type expression representing the type of the function ${f}$ and ${\forall~A_1,\ldots,A_k~}$ represents the type variables in the type expression ${F}$.
+  \item The strategy used to type check function ${f}$ is: Infer the type of function ${f}$ getting rid of its annotated type and try to unify the inferred type with the annotated type. If the unification is possible then the annotated type of the function is right otherwise there is a discrepancy between the two types which should result in a type error. Note that type inference yields the most general type of a function whereas the annotated type may be a specific instance of the most general type of the function. 
+  \item The equation ${T~=~F~[A_1^\prime/A_1,\ldots,A_k^\prime/A_k]}$ in the second row of Table \ref {STypeInf:FunBodyNoType} represents that
+   substitutions ${[A_1^\prime/A_1,\ldots,A_k^\prime/A_k]}$ are made inside the body of the type expression ${F}$. This is done in order to refresh the variable names of the type variables used in ${F}$.
+  \item ${E_{fun}}$ is the set of functions generated for the function ${f}$ without its annotated type.
+\end{itemize}
+
+
+\subsection {Mutually Recursive Function Definitions}\label{STypeInf:FDefnMRec}
+Two functions {\bf f} and {\bf g} are mutually recursive if the function {\bf f} calls the function {\bf g} and the function {\bf g} calls the function {\bf f}. Similarly, a set of functions are mutually recursive if there is a circular dependency between them.
+~~\\~~\\ 
+Table \ref {STypeInf:FunBodyMut} provides the type inference rule for mutually recursive functions. The basic idea of the inference rule is that the set of mutually recursive functions are considered one function for the purpose of the type inference process: the type equations for mutually recursive processes are generated and solved together.
+~~\\~~\\
+The description of the type inference rule for a set of mutually recursive functions ${f_1,\ldots,f_k}$ provided in Table \ref {STypeInf:FunBodyMut} is given below:
+\begin{itemize}
+  \item The functions ${f_1,\ldots,f_k}$ are assigned  dummy types which are then inserted in the symbol table. In this way the problem of calling a function before it is defined, as is the case in mutually recursive functions, is addressed.
+  \item The equations for individual functions are generated and combined to get the final equation for the set of mutually recursive functions.
+\end{itemize}
+
+\begin{table}
+\begin{center}
+\begin{tabular}{|c|} \hline
+Mutually recursive functions
+\\
+\hline \\~\\
+\begin{minipage}{5in}
+{
+\infer 
+  {
+    \begin {array}[c]{l}
+    \{~\} ~\vdash {\sf mutual} \\
+      \hskip 4em {\sf fun~~f_1~=} \\ 
+      \hskip 5em 
+          \begin {array}[c]{l} 
+           {\sf (p_{1,1},\ldots,p_{1,n}~\to~ t_1~)} \\  
+           \hskip 4em \vdots \hskip 6em :~T \\
+           {\sf (p_{m,1},\ldots,p_{m,n}~\to~ t_m~)}   
+          \end{array} \\~~\\ 
+          \hskip 7em \vdots \\~~\\ 
+      \hskip 4em {\sf fun~~f_k~=} \\     
+      \hskip 5em 
+      \begin {array}[c]{l} 
+       {\sf (q_{1,1},\ldots,q_{1,y}~\to~ t_1~)} \\  
+       \hskip 4em \vdots \hskip 6em :~S \\
+       {\sf (q_{x,1},\ldots,p_{x,y}~\to~ t_x~)}   
+      \end{array}
+    ~~~ \bigg\langle 
+           \exists~
+           \begin {array}[c]{l} 
+            T_1,\ldots,T_m\\
+            \hskip 2em \vdots \\ 
+            S_1,\ldots,S_x~.   
+           \end{array} 
+                 \begin {array}[c]{l}
+                 T_1 = T,\ldots,T_m = T,\\
+                 \hskip 4em \vdots \\
+                 S_1 = S,\ldots,S_m = S,\\
+                 F_1,\ldots,F_m,\\ 
+                 \hskip 2em \vdots \\
+                 G_1,\ldots,G_x
+                 \end{array}
+        \bigg\rangle 
+    \end{array}
+  }
+  { 
+   \begin {array}[c]{l}
+   \{~\}\vdash (p_{1,1},\ldots,p_{1,n}~\to~ t_1~) : T_1 ~~~ \Big\langle F_1 \Big\rangle \\
+   \hskip 8em \vdots  \\ 
+   \{~\}\vdash (p_{m,1},\ldots,p_{m,n}~\to~ t_m~) : T_{m} ~~ \Big\langle F_m \Big\rangle \hskip 2em \ldots
+   \end {array} &
+   \begin {array}[c]{l}
+   \{~\}\vdash (q_{1,1},\ldots,q_{1,y}~\to~ t_1~) : S_1 ~~~ \Big\langle G_1 \Big\rangle \\
+   \hskip 8em \vdots \\ 
+   \{~\}\vdash (q_{x,1},\ldots,q_{x,y}~\to~ t_x~) : S_{x} ~~ \Big\langle G_x \Big\rangle
+   \end {array}
+  }
+}
+\end {minipage}
+~~\\
+\tabularnewline
+\hline
+\end{tabular}
+\caption{Typing Rule for Mutually Recursive Function Definitions}
+\label{STypeInf:FunBodyMut}
+\end{center}
+\end{table}
+
+
+
+\end {document}
